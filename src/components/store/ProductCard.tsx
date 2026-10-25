@@ -92,15 +92,15 @@ export default function ProductCard({ product }: ProductCardProps) {
             <button
               type="button"
               onClick={handleOpenFastOrder}
-              className="flex-1 h-9 rounded-xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="flex-1 h-10.5 rounded-xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <Zap className="w-3.5 h-3.5 fill-phone-void text-phone-void" />
+              <Zap className="w-4 h-4 fill-phone-void text-phone-void" />
               <span>{t('expressOrder')}</span>
             </button>
 
             <Link
               href={`/produit/${product.slug}`}
-              className="h-9 w-9 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:bg-phone-surface-hover flex items-center justify-center shrink-0 transition-transform hover:scale-105 cursor-pointer"
+              className="h-10.5 w-10.5 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:bg-phone-surface-hover flex items-center justify-center shrink-0 transition-transform hover:scale-105 cursor-pointer"
               title="Voir les détails"
             >
               <Eye className="w-4 h-4" />
@@ -148,21 +148,21 @@ export default function ProductCard({ product }: ProductCardProps) {
               type="button"
               onClick={handleQuickAdd}
               aria-label={t('addToCart')}
-              className={`h-9 px-3 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${
+              className={`h-11 px-4 sm:px-4.5 rounded-xl border flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer active:scale-95 shadow-sm ${
                 justAdded
-                  ? 'bg-phone-emerald text-phone-void border-phone-emerald'
-                  : 'bg-phone-surface-elevated border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover'
+                  ? 'bg-phone-emerald text-phone-void border-phone-emerald shadow-glow'
+                  : 'bg-phone-surface-elevated border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover hover:text-white'
               }`}
             >
               {justAdded ? (
                 <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{t('addedToCart')}</span>
+                  <Check className="w-4 h-4" />
+                  <span>{t('addedToCart')}</span>
                 </>
               ) : (
                 <>
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{t('navCart')}</span>
+                  <ShoppingBag className="w-4 h-4 text-phone-emerald" />
+                  <span>{t('navCart')}</span>
                 </>
               )}
             </button>
