@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -18,6 +18,8 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
+  UploadCloud,
+  Loader2,
 } from 'lucide-react';
 import CustomSelect from '@/components/common/CustomSelect';
 import { INITIAL_PHONE_PRODUCTS } from '@/data/mock-products';
@@ -46,7 +48,15 @@ export default function AdminProduitsPage() {
   const [wattage, setWattage] = useState('65W GaN Fast Charge');
   const [connector, setConnector] = useState('Type-C vers Type-C');
   const [warranty, setWarranty] = useState('Garantie 6 Mois Échange à Neuf');
-  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80');
+  const [imageUrl, setImageUrl] = useState('');
+  const [uploadedImageUrl, setUploadedImageUrl] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProvider, setUploadProvider] = useState<'cloudinary' | 'local' | null>(null);
+  const [showUrlFallback, setShowUrlFallback] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState('');
   const [variants, setVariants] = useState<IProductVariant[]>([
     {
@@ -153,6 +163,69 @@ export default function AdminProduitsPage() {
     );
   };
 
+  // Cloudinary / Local Image Upload Handlers
+  const handleUploadFile = async (file: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Veuillez sélectionner un fichier image valide (JPG, PNG, WEBP, AVIF).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg("La taille de l'image ne doit pas dépasser 10 Mo.");
+      return;
+    }
+
+    setErrorMsg('');
+    setSelectedFileName(file.name);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.url) {
+        setUploadedImageUrl(data.url);
+        setImageUrl(data.url);
+        setUploadProvider(data.provider || 'cloudinary');
+      } else {
+        setErrorMsg(data.error || "Erreur lors du téléversement de l'image.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Erreur de connexion lors du téléversement de l'image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleUploadFile(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewUrl(null);
+    setUploadedImageUrl('');
+    setImageUrl('');
+    setSelectedFileName('');
+    setUploadProvider(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   // Submit Handler
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +235,15 @@ export default function AdminProduitsPage() {
     }
     if (!price || price <= 0) {
       setErrorMsg('Veuillez indiquer un prix valide supérieur à 0 DZD.');
+      return;
+    }
+    if (isUploading) {
+      setErrorMsg("Veuillez patienter pendant l'envoi de l'image vers Cloudinary...");
+      return;
+    }
+    const finalImage = uploadedImageUrl || imageUrl;
+    if (!finalImage) {
+      setErrorMsg('Veuillez sélectionner et importer une image pour le produit.');
       return;
     }
 
@@ -182,7 +264,7 @@ export default function AdminProduitsPage() {
           connector: connector || undefined,
           warranty: warranty || undefined,
           description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
-          images: [imageUrl],
+          images: [finalImage],
           variants,
           isFeatured: true,
           isActive: true,
@@ -198,6 +280,13 @@ export default function AdminProduitsPage() {
         // Reset form
         setTitle('');
         setPrice(3500);
+        setCompareAtPrice(4500);
+        setUploadedImageUrl('');
+        setImageUrl('');
+        setPreviewUrl(null);
+        setSelectedFileName('');
+        setUploadProvider(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
         setTimeout(() => setSuccessMsg(''), 4000);
       } else {
         setErrorMsg(data.error || 'Erreur lors de la création du produit.');
@@ -509,32 +598,158 @@ export default function AdminProduitsPage() {
                 </div>
               </div>
 
-              {/* Row 4: Image URL & Preview */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-phone-muted uppercase font-mono">
-                  URL de l&apos;Image Principale
-                </label>
-                <div className="flex gap-3 items-center">
-                  <div className="relative flex-1">
+              {/* Row 4: Image File Upload via Cloudinary */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-phone-muted uppercase font-mono flex items-center gap-1.5">
+                    <UploadCloud className="w-3.5 h-3.5 text-phone-cyan" />
+                    <span>Photo de l&apos;Accessoire *</span>
+                  </label>
+                  {uploadProvider && (
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        uploadProvider === 'cloudinary'
+                          ? 'bg-phone-emerald/10 text-phone-emerald border-phone-emerald/30'
+                          : 'bg-phone-cyan/10 text-phone-cyan border-phone-cyan/30'
+                      }`}
+                    >
+                      {uploadProvider === 'cloudinary' ? '● Cloudinary CDN Actif' : '● Stockage Local Sécurisé'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/avif"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+
+                {!previewUrl && !uploadedImageUrl && !imageUrl ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleUploadFile(file);
+                    }}
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group ${
+                      isDragging
+                        ? 'border-phone-emerald bg-phone-emerald/10 scale-[1.01]'
+                        : 'border-phone-border hover:border-phone-cyan/50 hover:bg-phone-surface-elevated/40 bg-phone-void'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-phone-surface border border-phone-border flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <UploadCloud className="w-6 h-6 text-phone-emerald" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-phone-frost">
+                        Cliquez pour sélectionner un fichier ou glissez-déposez ici
+                      </p>
+                      <p className="text-[11px] text-phone-dim mt-0.5">
+                        PNG, JPG, WEBP, AVIF jusqu’à 10 Mo • Synchronisé Cloudinary
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-phone-void border border-phone-border flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-xl bg-phone-surface border border-phone-border relative overflow-hidden shrink-0">
+                      <Image
+                        src={previewUrl || uploadedImageUrl || imageUrl}
+                        alt="Aperçu du produit"
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-phone-emerald animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {isUploading ? (
+                          <span className="text-xs font-semibold text-phone-cyan flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Téléversement vers Cloudinary...
+                          </span>
+                        ) : uploadedImageUrl || imageUrl ? (
+                          <span className="text-xs font-semibold text-phone-emerald flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Image prête &amp; synchronisée
+                          </span>
+                        ) : (
+                          <span className="text-xs text-phone-danger">Échec du téléversement</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-phone-muted truncate font-mono">
+                        {uploadedImageUrl || selectedFileName || imageUrl || 'Image sélectionnée'}
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="text-[11px] font-bold text-phone-cyan hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          Changer l&apos;image
+                        </button>
+                        <span className="text-phone-border">|</span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          disabled={isUploading}
+                          className="text-[11px] font-bold text-phone-danger hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Optional Fallback for manual link if needed */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlFallback((prev) => !prev)}
+                    className="text-[11px] text-phone-dim hover:text-phone-cyan underline cursor-pointer"
+                  >
+                    {showUrlFallback ? 'Masquer la saisie URL manuelle' : 'Ou coller une URL d’image externe'}
+                  </button>
+                </div>
+
+                {showUrlFallback && (
+                  <div className="pt-1.5">
                     <input
                       type="url"
-                      required
                       value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
+                      onChange={(e) => {
+                        setImageUrl(e.target.value);
+                        if (e.target.value) {
+                          setPreviewUrl(e.target.value);
+                          setUploadedImageUrl(e.target.value);
+                        }
+                      }}
                       placeholder="https://..."
-                      className="w-full h-11 px-3.5 rounded-xl bg-phone-void border border-phone-border text-phone-frost text-xs font-mono focus:outline-none focus:border-phone-emerald"
+                      className="w-full h-10 px-3 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs font-mono focus:outline-none focus:border-phone-emerald"
                     />
                   </div>
-                  <div className="w-11 h-11 rounded-xl bg-phone-void border border-phone-border overflow-hidden shrink-0 relative">
-                    {imageUrl ? (
-                      <Image src={imageUrl} alt="Preview" fill sizes="44px" className="object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-phone-dim">
-                        <ImageIcon className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Row 5: Description */}
