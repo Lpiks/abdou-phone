@@ -244,3 +244,36 @@ export async function updateProductVariantStock(slug: string, variantIndex: numb
   }
   return false;
 }
+
+export function generateProductSlug(title: string): string {
+  const base = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+  return `${base}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+export async function createProduct(productData: Omit<IProduct, '_id' | 'createdAt' | 'updatedAt'>): Promise<IProduct> {
+  const slug = productData.slug || generateProductSlug(productData.title);
+  const fullProduct: IProduct = {
+    ...productData,
+    slug,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      const doc = await Product.create(fullProduct);
+      return JSON.parse(JSON.stringify(doc));
+    } catch (err) {
+      console.warn('[Store] Mongo createProduct failed, saving to memory:', err);
+    }
+  }
+
+  inMemoryProducts.unshift(fullProduct);
+  return fullProduct;
+}
