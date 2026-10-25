@@ -11,7 +11,7 @@ export const INITIAL_PHONE_PRODUCTS: IProduct[] = [
     costPrice: 2200,
     images: [
       'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1622445262464-84b1456045b6?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584006682522-dc17d6c0d9ac?auto=format&fit=crop&w=800&q=80',
     ],
     brand: 'Abdou Phone Pro',
     wattage: '65W GaN Fast Charge',
@@ -41,7 +41,7 @@ export const INITIAL_PHONE_PRODUCTS: IProduct[] = [
     compareAtPrice: 2400,
     costPrice: 950,
     images: [
-      'https://images.unsplash.com/photo-1622445262464-84b1456045b6?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584006682522-dc17d6c0d9ac?auto=format&fit=crop&w=800&q=80',
     ],
     brand: 'Abdou Phone Original',
     wattage: '20W PD 3.0',
@@ -249,7 +249,7 @@ export const INITIAL_PHONE_PRODUCTS: IProduct[] = [
     compareAtPrice: 6800,
     costPrice: 3400,
     images: [
-      'https://images.unsplash.com/photo-1609592426868-82559775db27?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
     ],
     brand: 'Abdou Power',
     wattage: '15W Wireless + 20W PD Type-C',
@@ -279,7 +279,7 @@ export const INITIAL_PHONE_PRODUCTS: IProduct[] = [
     compareAtPrice: 9500,
     costPrice: 5200,
     images: [
-      'https://images.unsplash.com/photo-1609592426868-82559775db27?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
     ],
     brand: 'Abdou Power Pro',
     wattage: '65W Power Delivery Turbo',
