@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  body {
+    @apply bg-phone-void text-phone-frost font-sans antialiased selection:bg-phone-emerald/20 selection:text-phone-frost overflow-x-hidden;
+    min-width: 320px;
+  }
+}
+
+/* =========================================================================
+   STRICT CURSOR POINTER DIRECTIVE:
+   Every interactive button, link, role=button, and custom trigger MUST have cursor: pointer.
+   ========================================================================= */
+a,
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+summary,
+[tabindex="0"],
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+/* RTL (Arabic) Native Flow & Font Smoothing */
+[dir="rtl"] {
+  text-align: right;
+  font-family: 'Cairo', 'Amiri', 'Segoe UI', Tahoma, -apple-system, sans-serif;
+}
+
+[dir="rtl"] .tracking-wider,
+[dir="rtl"] .tracking-widest,
+[dir="rtl"] .tracking-tight {
+  letter-spacing: 0.02em;
+}
+
+/* Custom Minimalist Dark Hardware Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090A0D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252A36;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #353D4E;
+}
+
+/* Subtle hardware grid background accent utility */
+.hardware-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Extreme Mobile Responsiveness (Down to 320px screens) */
+@media (max-width: 360px) {
+  .text-base {
+    font-size: 0.875rem !important;
+  }
+  .text-lg {
+    font-size: 1rem !important;
+  }
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+}

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" width="100%" height="100%">
+  <!-- Background: Deep Warm Slate / Titanium Black -->
+  <rect width="800" height="240" rx="12" fill="#0C0D0E" stroke="#1C1E22" stroke-width="1.5"/>
+
+  <!-- Subtle Minimalist Grid Dot Pattern -->
+  <g fill="#262A33" opacity="0.4">
+    <circle cx="60" cy="60" r="1.5"/>
+    <circle cx="60" cy="120" r="1.5"/>
+    <circle cx="60" cy="180" r="1.5"/>
+    <circle cx="740" cy="60" r="1.5"/>
+    <circle cx="740" cy="120" r="1.5"/>
+    <circle cx="740" cy="180" r="1.5"/>
+  </g>
+
+  <!-- ICON: The Minimalist Pill & Lens Glyph (Nomad / Nothing style) -->
+  <g transform="translate(75, 55)">
+    <!-- Precision outer pill container -->
+    <rect x="0" y="0" width="130" height="130" rx="36" fill="#14161B" stroke="#2D323C" stroke-width="2"/>
+    
+    <!-- Minimalist interconnected dual-lens / magnetic pill (tactile hardware feel) -->
+    <rect x="35" y="32" width="60" height="26" rx="13" fill="none" stroke="#E2E8F0" stroke-width="4.5"/>
+    <rect x="35" y="72" width="60" height="26" rx="13" fill="#E2E8F0"/>
+    
+    <!-- Ultra-subtle micro focal dot in tactile amber -->
+    <circle cx="82" cy="45" r="4" fill="#E2E8F0"/>
+    <circle cx="48" cy="85" r="4" fill="#0C0D0E"/>
+  </g>
+
+  <!-- TYPOGRAPHY: Swiss Minimalist Tracking -->
+  <g transform="translate(245, 80)">
+    <!-- Logotype -->
+    <text x="0" y="42" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif" font-size="44" font-weight="700" fill="#FFFFFF" letter-spacing="4">
+      ABDOU <tspan font-weight="300" fill="#94A3B8">PHONE</tspan>
+    </text>
+
+    <!-- Subtitle: Understated luxury -->
+    <text x="3" y="74" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="500" fill="#64748B" letter-spacing="6">
+      DESIGNED ACCESSORIES &amp; HARDWARE
+    </text>
+
+    <!-- Subtle divider line -->
+    <line x1="3" y1="92" x2="480" y2="92" stroke="#1E232B" stroke-width="1"/>
+  </g>
+</svg>
