@@ -27,10 +27,24 @@ const AuditLogSchema = new Schema<IAuditLogDocument>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
-const AuditLog: Model<IAuditLogDocument> =
-  (mongoose?.models?.AuditLog as Model<IAuditLogDocument>) ||
-  (typeof mongoose?.model === 'function'
-    ? mongoose.model<IAuditLogDocument>('AuditLog', AuditLogSchema)
-    : ({} as Model<IAuditLogDocument>));
+const getAuditLogModel = (): Model<IAuditLogDocument> => {
+  if (typeof window !== 'undefined') {
+    return {} as Model<IAuditLogDocument>;
+  }
+  try {
+    if (mongoose && typeof mongoose.model === 'function') {
+      const models = mongoose.models || {};
+      if (models.AuditLog) {
+        return models.AuditLog as Model<IAuditLogDocument>;
+      }
+      return mongoose.model<IAuditLogDocument>('AuditLog', AuditLogSchema);
+    }
+  } catch (err) {
+    console.warn('[Model AuditLog Init Warning]:', err);
+  }
+  return {} as Model<IAuditLogDocument>;
+};
+
+const AuditLog: Model<IAuditLogDocument> = getAuditLogModel();
 
 export default AuditLog;

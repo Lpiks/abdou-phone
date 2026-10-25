@@ -12,15 +12,16 @@ declare global {
   var mongooseCache: MongooseCache | undefined;
 }
 
-let cached: MongooseCache = global.mongooseCache || {
-  conn: null,
-  promise: null,
-  isOffline: false,
-  lastFailureTime: 0,
-};
+let cached: MongooseCache =
+  (typeof globalThis !== 'undefined' && (globalThis as any).mongooseCache) || {
+    conn: null,
+    promise: null,
+    isOffline: false,
+    lastFailureTime: 0,
+  };
 
-if (!global.mongooseCache) {
-  global.mongooseCache = cached;
+if (typeof globalThis !== 'undefined' && !(globalThis as any).mongooseCache) {
+  (globalThis as any).mongooseCache = cached;
 }
 
 const OFFLINE_COOLDOWN_MS = 30_000;

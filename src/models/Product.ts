@@ -46,10 +46,24 @@ const ProductSchema = new Schema<IProductDocument>(
   }
 );
 
-const Product: Model<IProductDocument> =
-  (mongoose?.models?.Product as Model<IProductDocument>) ||
-  (typeof mongoose?.model === 'function'
-    ? mongoose.model<IProductDocument>('Product', ProductSchema)
-    : ({} as Model<IProductDocument>));
+const getProductModel = (): Model<IProductDocument> => {
+  if (typeof window !== 'undefined') {
+    return {} as Model<IProductDocument>;
+  }
+  try {
+    if (mongoose && typeof mongoose.model === 'function') {
+      const models = mongoose.models || {};
+      if (models.Product) {
+        return models.Product as Model<IProductDocument>;
+      }
+      return mongoose.model<IProductDocument>('Product', ProductSchema);
+    }
+  } catch (err) {
+    console.warn('[Model Product Init Warning]:', err);
+  }
+  return {} as Model<IProductDocument>;
+};
+
+const Product: Model<IProductDocument> = getProductModel();
 
 export default Product;

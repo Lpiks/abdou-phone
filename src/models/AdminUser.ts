@@ -19,10 +19,24 @@ const AdminUserSchema = new Schema<IAdminUserDocument>(
   { timestamps: true }
 );
 
-const AdminUser: Model<IAdminUserDocument> =
-  (mongoose?.models?.AdminUser as Model<IAdminUserDocument>) ||
-  (typeof mongoose?.model === 'function'
-    ? mongoose.model<IAdminUserDocument>('AdminUser', AdminUserSchema)
-    : ({} as Model<IAdminUserDocument>));
+const getAdminUserModel = (): Model<IAdminUserDocument> => {
+  if (typeof window !== 'undefined') {
+    return {} as Model<IAdminUserDocument>;
+  }
+  try {
+    if (mongoose && typeof mongoose.model === 'function') {
+      const models = mongoose.models || {};
+      if (models.AdminUser) {
+        return models.AdminUser as Model<IAdminUserDocument>;
+      }
+      return mongoose.model<IAdminUserDocument>('AdminUser', AdminUserSchema);
+    }
+  } catch (err) {
+    console.warn('[Model AdminUser Init Warning]:', err);
+  }
+  return {} as Model<IAdminUserDocument>;
+};
+
+const AdminUser: Model<IAdminUserDocument> = getAdminUserModel();
 
 export default AdminUser;

@@ -49,10 +49,24 @@ const OrderSchema = new Schema<IOrderDocument>(
   }
 );
 
-const Order: Model<IOrderDocument> =
-  (mongoose?.models?.Order as Model<IOrderDocument>) ||
-  (typeof mongoose?.model === 'function'
-    ? mongoose.model<IOrderDocument>('Order', OrderSchema)
-    : ({} as Model<IOrderDocument>));
+const getOrderModel = (): Model<IOrderDocument> => {
+  if (typeof window !== 'undefined') {
+    return {} as Model<IOrderDocument>;
+  }
+  try {
+    if (mongoose && typeof mongoose.model === 'function') {
+      const models = mongoose.models || {};
+      if (models.Order) {
+        return models.Order as Model<IOrderDocument>;
+      }
+      return mongoose.model<IOrderDocument>('Order', OrderSchema);
+    }
+  } catch (err) {
+    console.warn('[Model Order Init Warning]:', err);
+  }
+  return {} as Model<IOrderDocument>;
+};
+
+const Order: Model<IOrderDocument> = getOrderModel();
 
 export default Order;

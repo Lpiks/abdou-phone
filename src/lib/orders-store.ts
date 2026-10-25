@@ -21,11 +21,15 @@ declare global {
   var memoryProducts: IProduct[] | undefined;
 }
 
-let inMemoryOrders: IOrder[] = global.memoryOrders || [...INITIAL_MOCK_ORDERS];
-let inMemoryProducts: IProduct[] = global.memoryProducts || [...INITIAL_PHONE_PRODUCTS];
+let inMemoryOrders: IOrder[] =
+  (typeof globalThis !== 'undefined' && (globalThis as any).memoryOrders) || [...INITIAL_MOCK_ORDERS];
+let inMemoryProducts: IProduct[] =
+  (typeof globalThis !== 'undefined' && (globalThis as any).memoryProducts) || [...INITIAL_PHONE_PRODUCTS];
 
-if (!global.memoryOrders) global.memoryOrders = inMemoryOrders;
-if (!global.memoryProducts) global.memoryProducts = inMemoryProducts;
+if (typeof globalThis !== 'undefined') {
+  if (!(globalThis as any).memoryOrders) (globalThis as any).memoryOrders = inMemoryOrders;
+  if (!(globalThis as any).memoryProducts) (globalThis as any).memoryProducts = inMemoryProducts;
+}
 
 /**
  * Generate unique order number: ABD-YYYY-XXXX
