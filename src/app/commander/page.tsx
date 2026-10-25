@@ -384,9 +384,9 @@ export default function CheckoutPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-14 rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                  className="w-full h-15 sm:h-16 min-h-[58px] sm:min-h-[62px] rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-50"
                 >
-                  <ShieldCheck className="w-5 h-5" />
+                  <ShieldCheck className="w-5 h-5 text-phone-void" />
                   <span>{isSubmitting ? 'Traitement...' : 'Confirmer la Commande (Paiement Cash)'}</span>
                 </button>
                 <p className="text-center text-[11px] text-phone-dim leading-relaxed">
