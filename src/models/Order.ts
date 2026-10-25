@@ -50,6 +50,9 @@ const OrderSchema = new Schema<IOrderDocument>(
 );
 
 const Order: Model<IOrderDocument> =
-  mongoose.models.Order || mongoose.model<IOrderDocument>('Order', OrderSchema);
+  (mongoose?.models?.Order as Model<IOrderDocument>) ||
+  (typeof mongoose?.model === 'function'
+    ? mongoose.model<IOrderDocument>('Order', OrderSchema)
+    : ({} as Model<IOrderDocument>));
 
 export default Order;

@@ -126,3 +126,14 @@ export interface IStoreSettings {
   defaultHomeFee: number;
   defaultDeskFee: number;
 }
+
+export interface IAuditEntry {
+  id?: string;
+  action: string;
+  adminEmail: string;
+  targetType: 'order' | 'product' | 'auth' | 'settings' | 'export' | 'promo';
+  targetId?: string;
+  details: string;
+  ipMasked: string;
+  createdAt: string;
+}

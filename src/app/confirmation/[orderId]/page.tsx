@@ -4,7 +4,8 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { CheckCircle2, Package, Truck, ArrowRight, Home } from 'lucide-react';
 import StoreShell from '@/components/store/StoreShell';
-import { getOrderByNumber, ORDER_STATUS_DETAILS } from '@/lib/orders-store';
+import { getOrderByNumber } from '@/lib/orders-store';
+import { ORDER_STATUS_DETAILS } from '@/data/order-status';
 
 export const dynamic = 'force-dynamic';
 

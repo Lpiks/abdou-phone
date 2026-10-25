@@ -28,6 +28,9 @@ const AuditLogSchema = new Schema<IAuditLogDocument>(
 );
 
 const AuditLog: Model<IAuditLogDocument> =
-  mongoose.models.AuditLog || mongoose.model<IAuditLogDocument>('AuditLog', AuditLogSchema);
+  (mongoose?.models?.AuditLog as Model<IAuditLogDocument>) ||
+  (typeof mongoose?.model === 'function'
+    ? mongoose.model<IAuditLogDocument>('AuditLog', AuditLogSchema)
+    : ({} as Model<IAuditLogDocument>));
 
 export default AuditLog;

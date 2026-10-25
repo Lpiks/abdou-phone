@@ -20,6 +20,9 @@ const AdminUserSchema = new Schema<IAdminUserDocument>(
 );
 
 const AdminUser: Model<IAdminUserDocument> =
-  mongoose.models.AdminUser || mongoose.model<IAdminUserDocument>('AdminUser', AdminUserSchema);
+  (mongoose?.models?.AdminUser as Model<IAdminUserDocument>) ||
+  (typeof mongoose?.model === 'function'
+    ? mongoose.model<IAdminUserDocument>('AdminUser', AdminUserSchema)
+    : ({} as Model<IAdminUserDocument>));
 
 export default AdminUser;

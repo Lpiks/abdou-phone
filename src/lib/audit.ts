@@ -1,16 +1,8 @@
 import { connectDB } from './db';
 import AuditLog from '@/models/AuditLog';
+import { IAuditEntry } from '@/types';
 
-export interface IAuditEntry {
-  id?: string;
-  action: string;
-  adminEmail: string;
-  targetType: 'order' | 'product' | 'auth' | 'settings' | 'export' | 'promo';
-  targetId?: string;
-  details: string;
-  ipMasked: string;
-  createdAt: string;
-}
+export type { IAuditEntry };
 
 declare global {
   // eslint-disable-next-line no-var

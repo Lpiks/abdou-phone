@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { IOrder, IProduct } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
-import { ORDER_STATUS_DETAILS } from '@/lib/orders-store';
+import { ORDER_STATUS_DETAILS } from '@/data/order-status';
 
 export default function AdminDashboardPage() {
   const { t, language } = useLanguage();

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, Search, FileText, Lock, RefreshCw, AlertCircle, Download } from 'lucide-react';
 import CustomSelect from '@/components/common/CustomSelect';
-import { IAuditEntry } from '@/lib/audit';
+import { IAuditEntry } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function AdminLogsPage() {

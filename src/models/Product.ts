@@ -47,6 +47,9 @@ const ProductSchema = new Schema<IProductDocument>(
 );
 
 const Product: Model<IProductDocument> =
-  mongoose.models.Product || mongoose.model<IProductDocument>('Product', ProductSchema);
+  (mongoose?.models?.Product as Model<IProductDocument>) ||
+  (typeof mongoose?.model === 'function'
+    ? mongoose.model<IProductDocument>('Product', ProductSchema)
+    : ({} as Model<IProductDocument>));
 
 export default Product;

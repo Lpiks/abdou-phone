@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Search, PackageCheck, Truck, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import StoreShell from '@/components/store/StoreShell';
-import { ISafeTrackingOrder } from '@/lib/orders-store';
+import { ISafeTrackingOrder } from '@/data/order-status';
 
 function SuiviCommandeContent() {
   const searchParams = useSearchParams();

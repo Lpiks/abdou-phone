@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Search, ShoppingCart, Check, AlertCircle, Eye, Phone, MapPin, X, Download, RefreshCw } from 'lucide-react';
 import CustomSelect from '@/components/common/CustomSelect';
 import { IOrder, OrderStatus } from '@/types';
-import { ORDER_STATUS_DETAILS } from '@/lib/orders-store';
+import { ORDER_STATUS_DETAILS } from '@/data/order-status';
 import { useLanguage } from '@/context/LanguageContext';
 
 function AdminCommandesContent() {
