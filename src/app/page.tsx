@@ -22,21 +22,21 @@ export default async function HomePage() {
   return (
     <StoreShell>
       {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-phone-border">
+      <section className="relative overflow-hidden pt-8 pb-14 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-28 border-b border-phone-border">
         {/* Ambient Radial Background Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-phone-emerald/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[600px] h-[220px] sm:h-[350px] bg-phone-emerald/10 blur-[80px] sm:blur-[130px] rounded-full pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-4 sm:space-y-6">
           {/* Hardware Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-phone-surface border border-phone-border shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-phone-emerald animate-pulse" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-phone-frost">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-phone-surface border border-phone-border shadow-sm max-w-full">
+            <span className="w-2 h-2 rounded-full bg-phone-emerald animate-pulse shrink-0" />
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-phone-frost truncate">
               Hardware &amp; Accessoires Smartphone • Algérie
             </span>
           </div>
 
           {/* Main Title */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-phone-frost max-w-4xl mx-auto leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-phone-frost max-w-4xl mx-auto leading-tight sm:leading-none">
             La Puissance &amp; La Protection{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-phone-frost via-phone-muted to-phone-emerald">
               Sans Compromis.
@@ -44,15 +44,15 @@ export default async function HomePage() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-lg text-phone-muted max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-base lg:text-lg text-phone-muted max-w-2xl mx-auto leading-relaxed px-1">
             Chargeurs GaN certifiés, câbles tressés 100W, coques MagSafe et verres trempés haute résistance. Testés rigoureusement et livrés dans les 58 wilayas d&apos;Algérie avec paiement en espèces à la livraison.
           </p>
 
           {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 sm:pt-4">
             <Link
               href="/boutique"
-              className="w-full sm:w-auto h-13 px-8 rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto h-12 sm:h-13 px-6 sm:px-8 rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer"
             >
               <span>Explorer tout le catalogue (~100 SKUs)</span>
               <ArrowRight className="w-4 h-4" />
@@ -60,30 +60,30 @@ export default async function HomePage() {
 
             <Link
               href="/suivi-commande"
-              className="w-full sm:w-auto h-13 px-6 rounded-2xl bg-phone-surface border border-phone-border hover:border-phone-border-light hover:bg-phone-surface-hover text-phone-frost font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full sm:w-auto h-12 sm:h-13 px-5 sm:px-6 rounded-2xl bg-phone-surface border border-phone-border hover:border-phone-border-light hover:bg-phone-surface-hover text-phone-frost font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <Truck className="w-4 h-4 text-phone-emerald" />
               <span>Suivre mon colis (58 Wilayas)</span>
             </Link>
           </div>
 
-          {/* 3 Metrics */}
-          <div className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-            <div className="p-4 rounded-2xl bg-phone-surface/50 border border-phone-border">
-              <div className="text-2xl font-bold font-mono text-phone-frost">58</div>
-              <div className="text-xs text-phone-muted">Wilayas desservies</div>
+          {/* 4 Metrics */}
+          <div className="pt-6 sm:pt-12 grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 max-w-3xl mx-auto text-left">
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-phone-surface/50 border border-phone-border">
+              <div className="text-xl sm:text-2xl font-bold font-mono text-phone-frost">58</div>
+              <div className="text-[11px] sm:text-xs text-phone-muted">Wilayas desservies</div>
             </div>
-            <div className="p-4 rounded-2xl bg-phone-surface/50 border border-phone-border">
-              <div className="text-2xl font-bold font-mono text-phone-emerald">6 Mois</div>
-              <div className="text-xs text-phone-muted">Garantie échange neuf</div>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-phone-surface/50 border border-phone-border">
+              <div className="text-xl sm:text-2xl font-bold font-mono text-phone-emerald">6 Mois</div>
+              <div className="text-[11px] sm:text-xs text-phone-muted">Garantie échange neuf</div>
             </div>
-            <div className="p-4 rounded-2xl bg-phone-surface/50 border border-phone-border">
-              <div className="text-2xl font-bold font-mono text-phone-frost">100%</div>
-              <div className="text-xs text-phone-muted">Paiement à la livraison</div>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-phone-surface/50 border border-phone-border">
+              <div className="text-xl sm:text-2xl font-bold font-mono text-phone-frost">100%</div>
+              <div className="text-[11px] sm:text-xs text-phone-muted">Paiement à la livraison</div>
             </div>
-            <div className="p-4 rounded-2xl bg-phone-surface/50 border border-phone-border">
-              <div className="text-2xl font-bold font-mono text-phone-frost">0 Bloat</div>
-              <div className="text-xs text-phone-muted">Rapide &amp; Direct</div>
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-phone-surface/50 border border-phone-border">
+              <div className="text-xl sm:text-2xl font-bold font-mono text-phone-frost">0 Bloat</div>
+              <div className="text-[11px] sm:text-xs text-phone-muted">Rapide &amp; Direct</div>
             </div>
           </div>
         </div>

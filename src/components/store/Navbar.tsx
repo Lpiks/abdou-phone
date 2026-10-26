@@ -64,16 +64,18 @@ export default function Navbar() {
 
         {/* Action Controls & Language Switcher */}
         <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* Trilingual Switcher */}
-          <LanguageSwitcher />
+          {/* Trilingual Switcher (Hidden on mobile, accessible in drawer) */}
+          <div className="hidden sm:inline-flex">
+            <LanguageSwitcher />
+          </div>
 
           {/* Quick Search Link */}
           <Link
             href="/boutique"
             aria-label={t('navSearch')}
-            className="p-2 sm:p-2.5 rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost hover:bg-phone-surface-hover transition-colors cursor-pointer"
+            className="p-2 sm:p-2.5 h-10 w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost hover:bg-phone-surface-hover transition-colors cursor-pointer shrink-0"
           >
-            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Search className="w-4 h-4" />
           </Link>
 
           {/* Cart Trigger */}
@@ -81,7 +83,7 @@ export default function Navbar() {
             type="button"
             onClick={openCart}
             aria-label={t('navCart')}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover transition-all cursor-pointer relative group"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 h-10 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover transition-all cursor-pointer relative group shrink-0"
           >
             <ShoppingBag className="w-4 h-4 text-phone-frost group-hover:text-phone-emerald transition-colors" />
             <span className="text-xs font-bold font-mono">
@@ -96,7 +98,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost cursor-pointer"
+            className="lg:hidden p-2.5 h-10 w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost cursor-pointer shrink-0"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -105,47 +107,53 @@ export default function Navbar() {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-phone-border bg-phone-void px-4 py-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
-          <div className="flex flex-col space-y-2.5 text-sm font-medium">
+        <div className="lg:hidden border-t border-phone-border bg-phone-void px-4 py-5 space-y-4 animate-in slide-in-from-top-2 duration-200 shadow-2xl">
+          {/* Language Switcher in Mobile Drawer */}
+          <div className="pb-3 border-b border-phone-border flex items-center justify-between">
+            <span className="text-xs font-mono uppercase text-phone-muted font-bold">Langue / اللغة :</span>
+            <LanguageSwitcher />
+          </div>
+
+          <div className="flex flex-col space-y-2 text-sm font-medium">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg bg-phone-surface text-phone-frost hover:bg-phone-surface-hover"
+              className="px-3.5 py-2.5 rounded-xl bg-phone-surface text-phone-frost hover:bg-phone-surface-hover font-semibold"
             >
               {t('navHome')}
             </Link>
             <Link
               href="/boutique"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
+              className="px-3.5 py-2.5 rounded-xl hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
             >
               {t('navCatalog')} (~100 SKUs)
             </Link>
             <Link
               href="/boutique?cat=chargeurs"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
+              className="px-3.5 py-2.5 rounded-xl hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
             >
               {t('navChargers')}
             </Link>
             <Link
               href="/boutique?cat=coques"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
+              className="px-3.5 py-2.5 rounded-xl hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
             >
               {t('navCases')}
             </Link>
             <Link
               href="/boutique?cat=powerbanks"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
+              className="px-3.5 py-2.5 rounded-xl hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
             >
               {t('navPowerbanks')}
             </Link>
             <Link
               href="/suivi-commande"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-phone-emerald/10 border border-phone-emerald/30 text-phone-emerald font-semibold"
+              className="flex items-center gap-2 px-3.5 py-3 rounded-xl bg-phone-emerald/10 border border-phone-emerald/30 text-phone-emerald font-bold"
             >
               <PackageCheck className="w-4 h-4" />
               <span>{t('navTrackOrder')} (58 Wilayas)</span>

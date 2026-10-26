@@ -16,9 +16,9 @@ export default function BrandLogo({
 }: BrandLogoProps) {
   // Dimension configurations
   const dimensions = {
-    sm: { badge: 'w-8 h-8 rounded-lg', iconW: 24, iconH: 24, title: 'text-base', sub: 'text-[9px]' },
-    md: { badge: 'w-10 h-10 rounded-xl', iconW: 32, iconH: 32, title: 'text-xl', sub: 'text-[10px]' },
-    lg: { badge: 'w-14 h-14 rounded-2xl', iconW: 44, iconH: 44, title: 'text-2xl sm:text-3xl', sub: 'text-xs' },
+    sm: { badge: 'w-7 h-7 sm:w-8 sm:h-8 rounded-lg', iconW: 20, iconH: 20, title: 'text-sm sm:text-base', sub: 'text-[9px]' },
+    md: { badge: 'w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl', iconW: 26, iconH: 26, title: 'text-base sm:text-xl', sub: 'text-[9px] sm:text-[10px]' },
+    lg: { badge: 'w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl', iconW: 38, iconH: 38, title: 'text-xl sm:text-3xl', sub: 'text-xs' },
   }[size];
 
   const content = (
