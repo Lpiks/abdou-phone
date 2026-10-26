@@ -157,6 +157,11 @@ export async function listAllOrders(limit: number = 100): Promise<IOrder[]> {
   const mongooseInstance = await connectDB();
   if (mongooseInstance) {
     try {
+      const count = await Order.countDocuments();
+      if (count === 0 && INITIAL_MOCK_ORDERS.length > 0) {
+        const sanitized = INITIAL_MOCK_ORDERS.map(({ _id, ...rest }) => rest);
+        await Order.insertMany(sanitized);
+      }
       const docs = await Order.find().sort({ createdAt: -1 }).limit(limit).lean();
       return JSON.parse(JSON.stringify(docs));
     } catch (err) {
@@ -197,6 +202,11 @@ export async function listAllProducts(category?: string): Promise<IProduct[]> {
   const mongooseInstance = await connectDB();
   if (mongooseInstance) {
     try {
+      const totalCount = await Product.countDocuments();
+      if (totalCount === 0 && INITIAL_PHONE_PRODUCTS.length > 0) {
+        const sanitized = INITIAL_PHONE_PRODUCTS.map(({ _id, ...rest }) => rest);
+        await Product.insertMany(sanitized);
+      }
       const filter: Record<string, unknown> = { isActive: true };
       if (category && category !== 'all') filter.category = category;
       const docs = await Product.find(filter).sort({ createdAt: -1 }).lean();
