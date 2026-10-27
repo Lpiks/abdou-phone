@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import BrandLogo from '@/components/common/BrandLogo';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
+import LiveOrderNotifier from '@/components/admin/LiveOrderNotifier';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -49,11 +50,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div
-      className="min-h-screen bg-phone-void text-phone-frost hardware-grid flex flex-col md:flex-row overflow-x-hidden"
+      className="h-screen w-screen overflow-hidden bg-phone-void text-phone-frost hardware-grid flex flex-col md:flex-row"
       dir={isRtl ? 'rtl' : 'ltr'}
     >
       {/* Top Mobile/Tablet Header Bar */}
-      <header className="md:hidden w-full bg-phone-surface border-b border-phone-border px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+      <header className="md:hidden w-full bg-phone-surface border-b border-phone-border px-4 py-3 flex items-center justify-between shrink-0 z-40">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -67,6 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <div className="flex items-center gap-2">
+          <LiveOrderNotifier />
           <LanguageSwitcher />
         </div>
       </header>
@@ -108,7 +110,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Shield className="w-3 h-3 text-phone-emerald" />
                 <span>{t('adminNavRole')}</span>
               </div>
-              <LanguageSwitcher />
+              <div className="flex items-center gap-2">
+                <LiveOrderNotifier />
+                <LanguageSwitcher />
+              </div>
             </div>
           </div>
 
@@ -166,7 +171,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Administrative Stage */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-y-auto max-w-full">
+      <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 max-w-full">
         {children}
       </main>
     </div>

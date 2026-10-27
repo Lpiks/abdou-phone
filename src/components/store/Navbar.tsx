@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingBag, Search, PackageCheck, Menu, X } from 'lucide-react';
 import BrandLogo from '@/components/common/BrandLogo';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -9,9 +10,27 @@ import { useCart } from '@/context/CartContext';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function Navbar() {
+  const pathname = usePathname();
   const { itemCount, openCart } = useCart();
   const { t, dir } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isLinkActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    if (href === '/boutique') {
+      return pathname === '/boutique';
+    }
+    if (href === '/suivi-commande') return pathname === '/suivi-commande';
+    return pathname.startsWith(href);
+  };
+
+  const navLinks = [
+    { href: '/', label: t('navHome') },
+    { href: '/boutique', label: t('navCatalog') },
+    { href: '/boutique?cat=chargeurs', label: t('navChargers') },
+    { href: '/boutique?cat=coques', label: t('navCases') },
+    { href: '/boutique?cat=powerbanks', label: t('navPowerbanks') },
+  ];
 
   return (
     <header className="sticky top-0 z-40 w-full bg-phone-void/90 backdrop-blur-md border-b border-phone-border transition-colors">
@@ -25,13 +44,21 @@ export default function Navbar() {
         <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium">
           <Link
             href="/"
-            className="text-phone-frost hover:text-phone-emerald transition-colors cursor-pointer"
+            className={`transition-colors cursor-pointer ${
+              pathname === '/'
+                ? 'text-phone-emerald font-bold border-b-2 border-phone-emerald pb-0.5'
+                : 'text-phone-muted hover:text-phone-frost'
+            }`}
           >
             {t('navHome')}
           </Link>
           <Link
             href="/boutique"
-            className="text-phone-muted hover:text-phone-frost transition-colors cursor-pointer"
+            className={`transition-colors cursor-pointer ${
+              pathname === '/boutique'
+                ? 'text-phone-emerald font-bold border-b-2 border-phone-emerald pb-0.5'
+                : 'text-phone-muted hover:text-phone-frost'
+            }`}
           >
             {t('navCatalog')}
           </Link>
@@ -55,7 +82,11 @@ export default function Navbar() {
           </Link>
           <Link
             href="/suivi-commande"
-            className="flex items-center gap-1.5 text-xs font-mono uppercase px-3 py-1.5 rounded-lg bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-emerald hover:border-phone-emerald/40 transition-all cursor-pointer"
+            className={`flex items-center gap-1.5 text-xs font-mono uppercase px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+              pathname === '/suivi-commande'
+                ? 'bg-phone-emerald/15 border-phone-emerald text-phone-emerald font-bold shadow-sm'
+                : 'bg-phone-surface border-phone-border text-phone-muted hover:text-phone-emerald hover:border-phone-emerald/40'
+            }`}
           >
             <PackageCheck className="w-3.5 h-3.5 text-phone-emerald" />
             <span>{t('navTrackOrder')}</span>
@@ -116,16 +147,24 @@ export default function Navbar() {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3.5 py-2.5 rounded-xl bg-phone-surface text-phone-frost hover:bg-phone-surface-hover font-semibold"
+              className={`px-3.5 py-2.5 rounded-xl font-semibold transition-colors ${
+                pathname === '/'
+                  ? 'bg-phone-emerald/15 text-phone-emerald border border-phone-emerald/30 font-bold'
+                  : 'hover:bg-phone-surface text-phone-muted hover:text-phone-frost'
+              }`}
             >
               {t('navHome')}
             </Link>
             <Link
               href="/boutique"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3.5 py-2.5 rounded-xl hover:bg-phone-surface text-phone-muted hover:text-phone-frost"
+              className={`px-3.5 py-2.5 rounded-xl transition-colors ${
+                pathname === '/boutique'
+                  ? 'bg-phone-emerald/15 text-phone-emerald border border-phone-emerald/30 font-bold'
+                  : 'hover:bg-phone-surface text-phone-muted hover:text-phone-frost'
+              }`}
             >
-              {t('navCatalog')} (~100 SKUs)
+              {t('navCatalog')}
             </Link>
             <Link
               href="/boutique?cat=chargeurs"
@@ -151,7 +190,11 @@ export default function Navbar() {
             <Link
               href="/suivi-commande"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3.5 py-3 rounded-xl bg-phone-emerald/10 border border-phone-emerald/30 text-phone-emerald font-bold"
+              className={`flex items-center gap-2 px-3.5 py-3 rounded-xl font-bold transition-colors ${
+                pathname === '/suivi-commande'
+                  ? 'bg-phone-emerald/20 border border-phone-emerald text-phone-emerald'
+                  : 'bg-phone-emerald/10 border border-phone-emerald/30 text-phone-emerald'
+              }`}
             >
               <PackageCheck className="w-4 h-4" />
               <span>{t('navTrackOrder')} (58 Wilayas)</span>

@@ -5,6 +5,9 @@ import StoreShell from '@/components/store/StoreShell';
 import ProductCard from '@/components/store/ProductCard';
 import { listAllProducts } from '@/lib/orders-store';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function HomePage() {
   const allProducts = await listAllProducts();
   const featuredProducts = allProducts.filter((p) => p.isFeatured).slice(0, 6);

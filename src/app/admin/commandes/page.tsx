@@ -42,6 +42,21 @@ function AdminCommandesContent() {
 
   useEffect(() => {
     fetchOrders();
+
+    const handleNewOrder = (event: Event) => {
+      const customEvt = event as CustomEvent<IOrder>;
+      if (customEvt.detail) {
+        setOrders((prev) => {
+          if (prev.some((o) => o.orderNumber === customEvt.detail.orderNumber)) return prev;
+          return [customEvt.detail, ...prev];
+        });
+      }
+    };
+
+    window.addEventListener('new_order_received', handleNewOrder);
+    return () => {
+      window.removeEventListener('new_order_received', handleNewOrder);
+    };
   }, []);
 
   const handleUpdateStatus = async (orderNumber: string, newStatus: OrderStatus) => {

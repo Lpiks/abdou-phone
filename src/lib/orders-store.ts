@@ -4,6 +4,8 @@ import { INITIAL_MOCK_ORDERS } from '@/data/mock-orders';
 import { connectDB } from './db';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
+import Category, { ICategoryItem } from '@/models/Category';
+import { broadcastNewOrder } from './order-events';
 import {
   ORDER_STATUS_DETAILS,
   ISafeTrackingItem,
@@ -13,22 +15,54 @@ import {
 export { ORDER_STATUS_DETAILS };
 export type { ISafeTrackingItem, ISafeTrackingOrder };
 
+// -------------------------------------------------------------
+// High-Speed In-Memory RAM Cache (Sub-10ms response)
+// -------------------------------------------------------------
+interface CacheEntry<T> {
+  data: T;
+  cachedAt: number;
+}
+
+const productsRamCache = new Map<string, CacheEntry<IProduct[]>>();
+let categoriesRamCache: CacheEntry<ICategoryItem[]> | null = null;
+const CACHE_TTL_MS = 60 * 1000; // 60s auto-refresh, invalidated on write
+
+export function invalidateCatalogCache() {
+  productsRamCache.clear();
+  categoriesRamCache = null;
+}
+
+export const DEFAULT_CATEGORIES: ICategoryItem[] = [
+  { id: 'chargeurs', name: 'Chargeurs GaN', arabicName: 'شواحن GaN السريعة', description: '20W à 65W Ultra-rapide', icon: 'Zap', order: 1 },
+  { id: 'cables', name: 'Câbles 100W', arabicName: 'كوابل مدرعة 100 واط', description: '100W PD & Nylon Tressé', icon: 'Cpu', order: 2 },
+  { id: 'coques', name: 'Coques & MagSafe', arabicName: 'أغلفة MagSafe المقاومة', description: 'Grade Militaire Antichoc', icon: 'Smartphone', order: 3 },
+  { id: 'protection', name: 'Verres 9H & Privacy', arabicName: 'زجاج حماية 9H وخصوصية', description: 'Anti-espion & Saphir', icon: 'ShieldCheck', order: 4 },
+  { id: 'powerbanks', name: 'Batteries Externes', arabicName: 'بنوك طاقة متنقلة', description: '10K & 20K mAh Turbo', icon: 'BatteryCharging', order: 5 },
+  { id: 'audio', name: 'Audio & Écouteurs', arabicName: 'سماعات وصوتيات احترافية', description: 'ANC Réduction de Bruit', icon: 'Headphones', order: 6 },
+  { id: 'supports', name: 'Supports & Docks', arabicName: 'حوامل الهواتف للسيارة والمكتب', description: 'Magnétique Voiture & Bureau', icon: 'Boxes', order: 7 },
+];
+
 // Global in-memory fallback stores
 declare global {
   // eslint-disable-next-line no-var
   var memoryOrders: IOrder[] | undefined;
   // eslint-disable-next-line no-var
   var memoryProducts: IProduct[] | undefined;
+  // eslint-disable-next-line no-var
+  var memoryCategories: ICategoryItem[] | undefined;
 }
 
 let inMemoryOrders: IOrder[] =
   (typeof globalThis !== 'undefined' && (globalThis as any).memoryOrders) || [...INITIAL_MOCK_ORDERS];
 let inMemoryProducts: IProduct[] =
   (typeof globalThis !== 'undefined' && (globalThis as any).memoryProducts) || [...INITIAL_PHONE_PRODUCTS];
+let inMemoryCategories: ICategoryItem[] =
+  (typeof globalThis !== 'undefined' && (globalThis as any).memoryCategories) || [...DEFAULT_CATEGORIES];
 
 if (typeof globalThis !== 'undefined') {
   if (!(globalThis as any).memoryOrders) (globalThis as any).memoryOrders = inMemoryOrders;
   if (!(globalThis as any).memoryProducts) (globalThis as any).memoryProducts = inMemoryProducts;
+  if (!(globalThis as any).memoryCategories) (globalThis as any).memoryCategories = inMemoryCategories;
 }
 
 /**
@@ -45,15 +79,85 @@ export async function createOrder(orderData: Omit<IOrder, '_id' | 'orderNumber' 
   const mongooseInstance = await connectDB();
 
   if (mongooseInstance) {
+    // 1. Atomic Concurrency Lock: Check stock and decrement atomically
+    const reservedItems: { slug: string; color: string; qty: number }[] = [];
+
+    for (const item of orderData.items) {
+      const qty = Math.max(1, item.quantity || 1);
+      const color = item.selectedColor || '';
+
+      // Atomic conditional update in MongoDB
+      let res = await Product.updateOne(
+        {
+          slug: item.slug,
+          variants: {
+            $elemMatch: {
+              color,
+              stock: { $gte: qty },
+            },
+          },
+        },
+        {
+          $inc: { 'variants.$.stock': -qty },
+        }
+      );
+
+      // If exact color match didn't find variant with stock, try first variant with enough stock
+      if (res.matchedCount === 0 || res.modifiedCount === 0) {
+        res = await Product.updateOne(
+          {
+            slug: item.slug,
+            'variants.stock': { $gte: qty },
+          },
+          {
+            $inc: { 'variants.0.stock': -qty },
+          }
+        );
+      }
+
+      // If still 0, stock is exhausted! Rollback any reserved items and reject gracefully
+      if (res.matchedCount === 0 || res.modifiedCount === 0) {
+        for (const reserved of reservedItems) {
+          await Product.updateOne(
+            { slug: reserved.slug, 'variants.color': reserved.color },
+            { $inc: { 'variants.$.stock': reserved.qty } }
+          );
+        }
+        throw new Error(
+          `Désolé, l'article "${item.title}" (${item.selectedColor || 'Standard'}) vient d'être épuisé par une autre commande instantanée !`
+        );
+      }
+
+      reservedItems.push({ slug: item.slug, color, qty });
+    }
+
     try {
       const newDoc = await Order.create({
         ...orderData,
         orderNumber,
         status: 'en_attente',
       });
-      return JSON.parse(JSON.stringify(newDoc));
+      const parsedOrder: IOrder = JSON.parse(JSON.stringify(newDoc));
+      invalidateCatalogCache();
+      broadcastNewOrder(parsedOrder);
+      return parsedOrder;
     } catch (err) {
       console.warn('[Store] Mongo create failed, using memory store:', err);
+    }
+  }
+
+  // In-Memory Fallback Check
+  for (const item of orderData.items) {
+    const qty = Math.max(1, item.quantity || 1);
+    const prod = inMemoryProducts.find((p) => p.slug === item.slug);
+    if (prod && prod.variants) {
+      const v = prod.variants.find((vr) => vr.color === item.selectedColor) || prod.variants[0];
+      if (v) {
+        if (v.stock < qty) {
+          throw new Error(`Désolé, l'article "${item.title}" vient d'être épuisé en stock !`);
+        }
+        v.stock -= qty;
+      }
     }
   }
 
@@ -66,6 +170,8 @@ export async function createOrder(orderData: Omit<IOrder, '_id' | 'orderNumber' 
     updatedAt: new Date().toISOString(),
   };
   inMemoryOrders.unshift(newOrder);
+  invalidateCatalogCache();
+  broadcastNewOrder(newOrder);
   return newOrder;
 }
 
@@ -175,6 +281,20 @@ export async function updateOrderStatus(orderNumber: string, status: OrderStatus
   const mongooseInstance = await connectDB();
   if (mongooseInstance) {
     try {
+      // If order is cancelled or returned, replenish stock if it was not already cancelled/returned
+      if (status === 'annule' || status === 'retourne') {
+        const existing = await Order.findOne({ orderNumber }).lean();
+        if (existing && existing.status !== 'annule' && existing.status !== 'retourne') {
+          for (const it of existing.items) {
+            const qty = Math.max(1, it.quantity || 1);
+            await Product.updateOne(
+              { slug: it.slug, 'variants.color': it.selectedColor },
+              { $inc: { 'variants.$.stock': qty } }
+            );
+          }
+        }
+      }
+
       const updateData: Record<string, unknown> = { status, updatedAt: new Date() };
       if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
       const updated = await Order.findOneAndUpdate(
@@ -190,6 +310,17 @@ export async function updateOrderStatus(orderNumber: string, status: OrderStatus
 
   const idx = inMemoryOrders.findIndex((o) => o.orderNumber === orderNumber);
   if (idx !== -1) {
+    // In-memory stock restoration
+    if ((status === 'annule' || status === 'retourne') && inMemoryOrders[idx].status !== 'annule' && inMemoryOrders[idx].status !== 'retourne') {
+      for (const it of inMemoryOrders[idx].items) {
+        const prod = inMemoryProducts.find((p) => p.slug === it.slug);
+        if (prod && prod.variants) {
+          const v = prod.variants.find((vr) => vr.color === it.selectedColor) || prod.variants[0];
+          if (v) v.stock += Math.max(1, it.quantity || 1);
+        }
+      }
+    }
+
     inMemoryOrders[idx].status = status;
     if (adminNotes !== undefined) inMemoryOrders[idx].adminNotes = adminNotes;
     inMemoryOrders[idx].updatedAt = new Date().toISOString();
@@ -199,6 +330,12 @@ export async function updateOrderStatus(orderNumber: string, status: OrderStatus
 }
 
 export async function listAllProducts(category?: string): Promise<IProduct[]> {
+  const cacheKey = category && category !== 'all' ? category : 'all';
+  const cached = productsRamCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const mongooseInstance = await connectDB();
   if (mongooseInstance) {
     try {
@@ -210,7 +347,11 @@ export async function listAllProducts(category?: string): Promise<IProduct[]> {
       const filter: Record<string, unknown> = { isActive: true };
       if (category && category !== 'all') filter.category = category;
       const docs = await Product.find(filter).sort({ createdAt: -1 }).lean();
-      if (docs && docs.length > 0) return JSON.parse(JSON.stringify(docs));
+      if (docs && docs.length > 0) {
+        const cleanList = JSON.parse(JSON.stringify(docs));
+        productsRamCache.set(cacheKey, { data: cleanList, cachedAt: Date.now() });
+        return cleanList;
+      }
     } catch (err) {
       console.warn('[Store] Mongo list products failed:', err);
     }
@@ -220,6 +361,7 @@ export async function listAllProducts(category?: string): Promise<IProduct[]> {
   if (category && category !== 'all') {
     list = list.filter((p) => p.category === category);
   }
+  productsRamCache.set(cacheKey, { data: list, cachedAt: Date.now() });
   return list;
 }
 
@@ -237,6 +379,7 @@ export async function getProductBySlug(slug: string): Promise<IProduct | null> {
 }
 
 export async function updateProductVariantStock(slug: string, variantIndex: number, newStock: number): Promise<boolean> {
+  invalidateCatalogCache();
   const mongooseInstance = await connectDB();
   if (mongooseInstance) {
     try {
@@ -270,6 +413,7 @@ export function generateProductSlug(title: string): string {
 }
 
 export async function createProduct(productData: Omit<IProduct, '_id' | 'createdAt' | 'updatedAt'>): Promise<IProduct> {
+  invalidateCatalogCache();
   const slug = productData.slug || generateProductSlug(productData.title);
   const fullProduct: IProduct = {
     ...productData,
@@ -290,4 +434,174 @@ export async function createProduct(productData: Omit<IProduct, '_id' | 'created
 
   inMemoryProducts.unshift(fullProduct);
   return fullProduct;
+}
+
+export async function updateProduct(
+  slug: string,
+  updates: Partial<Omit<IProduct, '_id' | 'slug' | 'createdAt'>>
+): Promise<IProduct | null> {
+  invalidateCatalogCache();
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      const updated = await Product.findOneAndUpdate(
+        { slug },
+        { $set: { ...updates, updatedAt: new Date().toISOString() } },
+        { new: true }
+      ).lean();
+      if (updated) return JSON.parse(JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[Store] Mongo updateProduct failed:', err);
+    }
+  }
+
+  const idx = inMemoryProducts.findIndex((p) => p.slug === slug);
+  if (idx !== -1) {
+    inMemoryProducts[idx] = {
+      ...inMemoryProducts[idx],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    return inMemoryProducts[idx];
+  }
+  return null;
+}
+
+export async function deleteProduct(slug: string, hardDelete: boolean = true): Promise<boolean> {
+  invalidateCatalogCache();
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      if (hardDelete) {
+        await Product.deleteOne({ slug });
+      } else {
+        await Product.findOneAndUpdate({ slug }, { $set: { isActive: false, updatedAt: new Date().toISOString() } });
+      }
+      return true;
+    } catch (err) {
+      console.warn('[Store] Mongo deleteProduct failed:', err);
+    }
+  }
+
+  const idx = inMemoryProducts.findIndex((p) => p.slug === slug);
+  if (idx !== -1) {
+    if (hardDelete) {
+      inMemoryProducts.splice(idx, 1);
+    } else {
+      inMemoryProducts[idx].isActive = false;
+    }
+    return true;
+  }
+  return false;
+}
+
+// -------------------------------------------------------------
+// Category Dynamic Store
+// -------------------------------------------------------------
+export async function listAllCategories(): Promise<ICategoryItem[]> {
+  if (categoriesRamCache && Date.now() - categoriesRamCache.cachedAt < CACHE_TTL_MS) {
+    return categoriesRamCache.data;
+  }
+
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      const count = await Category.countDocuments();
+      if (count === 0 && DEFAULT_CATEGORIES.length > 0) {
+        await Category.insertMany(DEFAULT_CATEGORIES);
+      }
+      const docs = await Category.find().sort({ order: 1, createdAt: 1 }).lean();
+      if (docs && docs.length > 0) {
+        const cleanCats = JSON.parse(JSON.stringify(docs));
+        categoriesRamCache = { data: cleanCats, cachedAt: Date.now() };
+        return cleanCats;
+      }
+    } catch (err) {
+      console.warn('[Store] Mongo list categories failed:', err);
+    }
+  }
+
+  categoriesRamCache = { data: inMemoryCategories, cachedAt: Date.now() };
+  return inMemoryCategories;
+}
+
+export async function createCategory(cat: {
+  id: string;
+  name: string;
+  arabicName?: string;
+  description?: string;
+  icon?: string;
+}): Promise<ICategoryItem> {
+  categoriesRamCache = null;
+  const cleanId = (cat.id || cat.name)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
+  const newCat: ICategoryItem = {
+    id: cleanId,
+    name: cat.name.trim(),
+    arabicName: cat.arabicName?.trim() || undefined,
+    description: cat.description?.trim() || undefined,
+    icon: cat.icon?.trim() || 'Package',
+    order: Date.now(),
+  };
+
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      const doc = await Category.create(newCat);
+      return JSON.parse(JSON.stringify(doc));
+    } catch (err) {
+      console.warn('[Store] Mongo createCategory failed:', err);
+    }
+  }
+
+  inMemoryCategories.push(newCat);
+  return newCat;
+}
+
+export async function updateCategory(
+  id: string,
+  updates: Partial<ICategoryItem>
+): Promise<ICategoryItem | null> {
+  categoriesRamCache = null;
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      const updated = await Category.findOneAndUpdate({ id }, { $set: updates }, { new: true }).lean();
+      if (updated) return JSON.parse(JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[Store] Mongo updateCategory failed:', err);
+    }
+  }
+
+  const idx = inMemoryCategories.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    inMemoryCategories[idx] = { ...inMemoryCategories[idx], ...updates };
+    return inMemoryCategories[idx];
+  }
+  return null;
+}
+
+export async function deleteCategory(id: string): Promise<boolean> {
+  categoriesRamCache = null;
+  const mongooseInstance = await connectDB();
+  if (mongooseInstance) {
+    try {
+      await Category.deleteOne({ id });
+      return true;
+    } catch (err) {
+      console.warn('[Store] Mongo deleteCategory failed:', err);
+    }
+  }
+
+  const idx = inMemoryCategories.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    inMemoryCategories.splice(idx, 1);
+    return true;
+  }
+  return false;
 }

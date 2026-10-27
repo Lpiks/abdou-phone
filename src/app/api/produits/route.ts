@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllProducts, createProduct } from '@/lib/orders-store';
+import { listAllProducts, createProduct, updateProduct, deleteProduct } from '@/lib/orders-store';
 import { recordAuditLog, maskIp } from '@/lib/audit';
 import { verifyToken } from '@/lib/auth';
 
@@ -30,7 +30,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, count: products.length, products });
+    const response = NextResponse.json({ success: true, count: products.length, products });
+    if (process.env.NODE_ENV === 'production') {
+      response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+    } else {
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+    return response;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Server error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -124,6 +130,82 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Server error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { slug, ...updates } = body;
+
+    if (!slug) {
+      return NextResponse.json({ success: false, error: 'Identifiant slug manquant' }, { status: 400 });
+    }
+
+    const updated = await updateProduct(slug, updates);
+    if (!updated) {
+      return NextResponse.json({ success: false, error: 'Produit introuvable' }, { status: 404 });
+    }
+
+    const token = req.cookies.get('abdou_admin_token')?.value;
+    const admin = token ? verifyToken(token) : null;
+    const clientIp = maskIp(req.headers.get('x-forwarded-for') || '127.0.0.1');
+
+    await recordAuditLog({
+      action: 'product_update',
+      adminEmail: admin?.email || 'admin@abdouphone.dz',
+      targetType: 'product',
+      targetId: slug,
+      details: `Mise à jour de l'article "${updated.title}" (Prix: ${updated.price} DZD).`,
+      ipMasked: clientIp,
+    });
+
+    return NextResponse.json({ success: true, product: updated });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Server error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get('slug');
+
+    if (!slug) {
+      return NextResponse.json({ success: false, error: 'Identifiant slug manquant' }, { status: 400 });
+    }
+
+    const success = await deleteProduct(slug, true);
+    if (!success) {
+      return NextResponse.json({ success: false, error: 'Produit introuvable' }, { status: 404 });
+    }
+
+    const token = req.cookies.get('abdou_admin_token')?.value;
+    const admin = token ? verifyToken(token) : null;
+    const clientIp = maskIp(req.headers.get('x-forwarded-for') || '127.0.0.1');
+
+    await recordAuditLog({
+      action: 'product_delete',
+      adminEmail: admin?.email || 'admin@abdouphone.dz',
+      targetType: 'product',
+      targetId: slug,
+      details: `Suppression définitive de l'article "${slug}".`,
+      ipMasked: clientIp,
+    });
+
+    return NextResponse.json({ success: true, message: 'Produit supprimé avec succès' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Server error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });

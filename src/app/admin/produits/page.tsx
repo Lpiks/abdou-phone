@@ -20,6 +20,10 @@ import {
   Image as ImageIcon,
   UploadCloud,
   Loader2,
+  Edit,
+  Eye,
+  Tag,
+  ExternalLink,
 } from 'lucide-react';
 import CustomSelect from '@/components/common/CustomSelect';
 import { INITIAL_PHONE_PRODUCTS } from '@/data/mock-products';
@@ -35,6 +39,19 @@ export default function AdminProduitsPage() {
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<IProduct | null>(null);
+  const [previewingProduct, setPreviewingProduct] = useState<IProduct | null>(null);
+  const [previewImageIndex, setPreviewImageIndex] = useState(0);
+
+  const handleOpenPreview = (prod: IProduct) => {
+    setPreviewImageIndex(0);
+    setPreviewingProduct(prod);
+  };
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatArabic, setNewCatArabic] = useState('');
+  const [submittingCat, setSubmittingCat] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -48,13 +65,12 @@ export default function AdminProduitsPage() {
   const [wattage, setWattage] = useState('65W GaN Fast Charge');
   const [connector, setConnector] = useState('Type-C vers Type-C');
   const [warranty, setWarranty] = useState('Garantie 6 Mois Échange à Neuf');
-  const [imageUrl, setImageUrl] = useState('');
-  const [uploadedImageUrl, setUploadedImageUrl] = useState('');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState('');
+  // Multi-Image Gallery State (Deferred Cloudinary Upload on Save)
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
+  const [manualImageUrl, setManualImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadProvider, setUploadProvider] = useState<'cloudinary' | 'local' | null>(null);
   const [showUrlFallback, setShowUrlFallback] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState('');
@@ -92,30 +108,56 @@ export default function AdminProduitsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/categories');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.categories)) {
+        setDynamicCategories(data.categories);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch categories:', e);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
-  const categoryOptions = [
-    { value: 'all', label: 'Toutes les catégories' },
-    { value: 'chargeurs', label: 'Chargeurs GaN' },
-    { value: 'cables', label: 'Câbles 100W' },
-    { value: 'coques', label: 'Coques & MagSafe' },
-    { value: 'protection', label: 'Verres 9H & Privacy' },
-    { value: 'powerbanks', label: 'Batteries Externes' },
-    { value: 'audio', label: 'Audio & Écouteurs' },
-    { value: 'supports', label: 'Supports Voiture' },
-  ];
+  const categoryOptions = useMemo(() => {
+    if (dynamicCategories.length > 0) {
+      return [
+        { value: 'all', label: 'Toutes les catégories' },
+        ...dynamicCategories.map((c) => ({ value: c.id, label: c.name })),
+      ];
+    }
+    return [
+      { value: 'all', label: 'Toutes les catégories' },
+      { value: 'chargeurs', label: 'Chargeurs GaN' },
+      { value: 'cables', label: 'Câbles 100W' },
+      { value: 'coques', label: 'Coques & MagSafe' },
+      { value: 'protection', label: 'Verres 9H & Privacy' },
+      { value: 'powerbanks', label: 'Batteries Externes' },
+      { value: 'audio', label: 'Audio & Écouteurs' },
+      { value: 'supports', label: 'Supports Voiture' },
+    ];
+  }, [dynamicCategories]);
 
-  const modalCategoryOptions = [
-    { value: 'chargeurs', label: 'Chargeurs GaN' },
-    { value: 'cables', label: 'Câbles 100W' },
-    { value: 'coques', label: 'Coques & MagSafe' },
-    { value: 'protection', label: 'Verres 9H & Privacy' },
-    { value: 'powerbanks', label: 'Batteries Externes' },
-    { value: 'audio', label: 'Audio & Écouteurs' },
-    { value: 'supports', label: 'Supports Voiture' },
-  ];
+  const modalCategoryOptions = useMemo(() => {
+    if (dynamicCategories.length > 0) {
+      return dynamicCategories.map((c) => ({ value: c.id, label: c.name }));
+    }
+    return [
+      { value: 'chargeurs', label: 'Chargeurs GaN' },
+      { value: 'cables', label: 'Câbles 100W' },
+      { value: 'coques', label: 'Coques & MagSafe' },
+      { value: 'protection', label: 'Verres 9H & Privacy' },
+      { value: 'powerbanks', label: 'Batteries Externes' },
+      { value: 'audio', label: 'Audio & Écouteurs' },
+      { value: 'supports', label: 'Supports Voiture' },
+    ];
+  }, [dynamicCategories]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -163,71 +205,196 @@ export default function AdminProduitsPage() {
     );
   };
 
-  // Cloudinary / Local Image Upload Handlers
-  const handleUploadFile = async (file: File) => {
-    if (!file) return;
+  // Multi-Image Local Preview Handlers (ZERO Cloudinary upload until final Save)
+  const handleSelectFiles = (files: FileList | File[]) => {
+    const list = Array.from(files);
+    const validItems: { id: string; file: File; preview: string }[] = [];
 
-    if (!file.type.startsWith('image/')) {
-      setErrorMsg('Veuillez sélectionner un fichier image valide (JPG, PNG, WEBP, AVIF).');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg("La taille de l'image ne doit pas dépasser 10 Mo.");
-      return;
-    }
-
-    setErrorMsg('');
-    setSelectedFileName(file.name);
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-    setIsUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/admin/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.success && data.url) {
-        setUploadedImageUrl(data.url);
-        setImageUrl(data.url);
-        setUploadProvider(data.provider || 'cloudinary');
-      } else {
-        setErrorMsg(data.error || "Erreur lors du téléversement de l'image.");
+    for (const f of list) {
+      if (!f.type.startsWith('image/')) {
+        setErrorMsg(`Format non supporté: ${f.name}. Utilisez JPG, PNG, WEBP ou AVIF.`);
+        continue;
       }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Erreur de connexion lors du téléversement de l'image.");
-    } finally {
-      setIsUploading(false);
+      if (f.size > 10 * 1024 * 1024) {
+        setErrorMsg(`Fichier trop lourd: ${f.name} (max 10 Mo).`);
+        continue;
+      }
+      validItems.push({
+        id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        file: f,
+        preview: URL.createObjectURL(f),
+      });
+    }
+
+    if (validItems.length > 0) {
+      setErrorMsg('');
+      setPendingFiles((prev) => [...prev, ...validItems].slice(0, 6));
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleUploadFile(file);
+    if (e.target.files && e.target.files.length > 0) {
+      handleSelectFiles(e.target.files);
     }
   };
 
-  const handleRemoveImage = () => {
-    setPreviewUrl(null);
-    setUploadedImageUrl('');
-    setImageUrl('');
-    setSelectedFileName('');
-    setUploadProvider(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleRemovePendingFile = (id: string) => {
+    setPendingFiles((prev) => {
+      const item = prev.find((p) => p.id === id);
+      if (item) URL.revokeObjectURL(item.preview);
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  const handleRemoveExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddManualUrl = () => {
+    if (manualImageUrl.trim()) {
+      setExistingImages((prev) => [...prev, manualImageUrl.trim()]);
+      setManualImageUrl('');
     }
   };
 
-  // Submit Handler
-  const handleCreateProduct = async (e: React.FormEvent) => {
+  // Open Create Modal
+  const handleOpenCreateModal = () => {
+    // Revoke old previews
+    pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+    setEditingProduct(null);
+    setTitle('');
+    setCategory('chargeurs');
+    setBrand('Abdou Phone Pro');
+    setPrice(3500);
+    setCompareAtPrice(4500);
+    setWattage('65W GaN Fast Charge');
+    setConnector('Type-C vers Type-C');
+    setWarranty('Garantie 6 Mois Échange à Neuf');
+    setDescription('');
+    setExistingImages([]);
+    setPendingFiles([]);
+    setManualImageUrl('');
+    setVariants([
+      {
+        compatibility: 'Universel (iPhone / Samsung / Xiaomi)',
+        color: 'Noir Titane',
+        colorHex: '#111111',
+        stock: 30,
+        sku: 'ACC-BLK-01',
+      },
+      {
+        compatibility: 'Universel (iPhone / Samsung / Xiaomi)',
+        color: 'Blanc Givré',
+        colorHex: '#F8FAFC',
+        stock: 20,
+        sku: 'ACC-WHT-02',
+      },
+    ]);
+    setErrorMsg('');
+    setModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const handleOpenEditModal = (prod: IProduct) => {
+    // Revoke old previews
+    pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+    setEditingProduct(prod);
+    setTitle(prod.title);
+    setCategory(prod.category);
+    setBrand(prod.brand);
+    setPrice(prod.price);
+    setCompareAtPrice(prod.compareAtPrice || 0);
+    setWattage(prod.wattage || '');
+    setConnector(prod.connector || '');
+    setWarranty(prod.warranty || '');
+    setDescription(prod.description || '');
+    setExistingImages(Array.isArray(prod.images) ? [...prod.images] : []);
+    setPendingFiles([]);
+    setManualImageUrl('');
+    setVariants(prod.variants && prod.variants.length > 0 ? [...prod.variants] : [
+      {
+        compatibility: 'Universel Smartphone',
+        color: 'Standard',
+        colorHex: '#111111',
+        stock: 10,
+        sku: 'ACC-01',
+      }
+    ]);
+    setErrorMsg('');
+    setModalOpen(true);
+  };
+
+  // Delete Product
+  const handleDeleteProduct = async (slug: string, prodTitle: string) => {
+    if (!window.confirm(`Voulez-vous vraiment supprimer définitivement "${prodTitle}" du catalogue ?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/produits?slug=${slug}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setProducts((prev) => prev.filter((p) => p.slug !== slug));
+        setSuccessMsg(`Produit "${prodTitle}" supprimé avec succès.`);
+        if (previewingProduct?.slug === slug) setPreviewingProduct(null);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } else {
+        setErrorMsg(data.error || 'Erreur lors de la suppression.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Erreur de connexion au serveur.');
+    }
+  };
+
+  // Add Category Handler
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    try {
+      setSubmittingCat(true);
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCatName.trim(),
+          arabicName: newCatArabic.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.category) {
+        setDynamicCategories((prev) => [...prev, data.category]);
+        setNewCatName('');
+        setNewCatArabic('');
+        setSuccessMsg(`Rayon "${data.category.name}" ajouté avec succès !`);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } else {
+        setErrorMsg(data.error || "Erreur lors de l'ajout du rayon.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmittingCat(false);
+    }
+  };
+
+  // Delete Category Handler
+  const handleDeleteCategory = async (catId: string, catName: string) => {
+    if (!window.confirm(`Supprimer le rayon "${catName}" ?`)) return;
+    try {
+      const res = await fetch(`/api/admin/categories?id=${catId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setDynamicCategories((prev) => prev.filter((c) => c.id !== catId));
+        setSuccessMsg(`Rayon "${catName}" supprimé.`);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Submit Handler (Create or Update)
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setErrorMsg('Veuillez spécifier le titre du produit.');
@@ -237,65 +404,113 @@ export default function AdminProduitsPage() {
       setErrorMsg('Veuillez indiquer un prix valide supérieur à 0 DZD.');
       return;
     }
-    if (isUploading) {
-      setErrorMsg("Veuillez patienter pendant l'envoi de l'image vers Cloudinary...");
-      return;
-    }
-    const finalImage = uploadedImageUrl || imageUrl;
-    if (!finalImage) {
-      setErrorMsg('Veuillez sélectionner et importer une image pour le produit.');
-      return;
-    }
 
     setErrorMsg('');
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/produits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          category,
-          brand,
-          price,
-          compareAtPrice: compareAtPrice || undefined,
-          wattage: wattage || undefined,
-          connector: connector || undefined,
-          warranty: warranty || undefined,
-          description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
-          images: [finalImage],
-          variants,
-          isFeatured: true,
-          isActive: true,
-        }),
-      });
+      // 1. Deferred Cloudinary Upload: Upload pending files in parallel ONLY now!
+      const uploadedUrls: string[] = [];
+      if (pendingFiles.length > 0) {
+        setIsUploading(true);
+        for (const item of pendingFiles) {
+          try {
+            const formData = new FormData();
+            formData.append('file', item.file);
+            const resUpload = await fetch('/api/admin/upload', {
+              method: 'POST',
+              body: formData,
+            });
+            const dataUpload = await resUpload.json();
+            if (dataUpload.success && dataUpload.url) {
+              uploadedUrls.push(dataUpload.url);
+            }
+          } catch (err) {
+            console.error('File upload error:', err);
+          }
+        }
+        setIsUploading(false);
+      }
 
-      const data = await res.json();
-      if (data.success && data.product) {
-        setProducts((prev) => [data.product, ...prev]);
-        setSuccessMsg(`Produit "${data.product.title}" ajouté avec succès !`);
-        setModalOpen(false);
+      const defaultPlaceholder = 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80';
+      const allImages = [...existingImages, ...uploadedUrls];
+      const finalImages = allImages.length > 0 ? allImages : [defaultPlaceholder];
 
-        // Reset form
-        setTitle('');
-        setPrice(3500);
-        setCompareAtPrice(4500);
-        setUploadedImageUrl('');
-        setImageUrl('');
-        setPreviewUrl(null);
-        setSelectedFileName('');
-        setUploadProvider(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        setTimeout(() => setSuccessMsg(''), 4000);
+      if (editingProduct) {
+        // UPDATE existing product
+        const res = await fetch('/api/produits', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug: editingProduct.slug,
+            title,
+            category,
+            brand,
+            price,
+            compareAtPrice: compareAtPrice || undefined,
+            wattage: wattage || undefined,
+            connector: connector || undefined,
+            warranty: warranty || undefined,
+            description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
+            images: finalImages,
+            variants,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success && data.product) {
+          setProducts((prev) => prev.map((p) => (p.slug === editingProduct.slug ? data.product : p)));
+          setSuccessMsg(`Produit "${data.product.title}" mis à jour avec succès !`);
+          pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+          setPendingFiles([]);
+          setExistingImages([]);
+          setModalOpen(false);
+          setEditingProduct(null);
+          setTimeout(() => setSuccessMsg(''), 4000);
+        } else {
+          setErrorMsg(data.error || 'Erreur lors de la mise à jour.');
+        }
       } else {
-        setErrorMsg(data.error || 'Erreur lors de la création du produit.');
+        // CREATE new product
+        const res = await fetch('/api/produits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            category,
+            brand,
+            price,
+            compareAtPrice: compareAtPrice || undefined,
+            wattage: wattage || undefined,
+            connector: connector || undefined,
+            warranty: warranty || undefined,
+            description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
+            images: finalImages,
+            variants,
+            isFeatured: true,
+            isActive: true,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success && data.product) {
+          setProducts((prev) => [data.product, ...prev]);
+          setSuccessMsg(`Produit "${data.product.title}" ajouté avec succès !`);
+          pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+          setPendingFiles([]);
+          setExistingImages([]);
+          setModalOpen(false);
+          setTimeout(() => setSuccessMsg(''), 4000);
+        } else {
+          setErrorMsg(data.error || 'Erreur lors de la création du produit.');
+        }
       }
     } catch (err) {
       console.error(err);
       setErrorMsg('Erreur de connexion au serveur.');
     } finally {
       setSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -313,7 +528,7 @@ export default function AdminProduitsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
             onClick={fetchProducts}
@@ -321,6 +536,16 @@ export default function AdminProduitsPage() {
             title="Rafraîchir"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* Manage Categories Button */}
+          <button
+            type="button"
+            onClick={() => setCategoryModalOpen(true)}
+            className="h-10 px-3.5 rounded-xl bg-phone-surface border border-phone-border hover:border-phone-emerald/40 text-phone-frost font-bold text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <Tag className="w-4 h-4 text-phone-emerald" />
+            <span>Rayons ({dynamicCategories.length})</span>
           </button>
 
           <Link
@@ -334,7 +559,7 @@ export default function AdminProduitsPage() {
           {/* New Product Trigger Button */}
           <button
             type="button"
-            onClick={() => setModalOpen(true)}
+            onClick={handleOpenCreateModal}
             className="h-10 px-4 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -390,7 +615,7 @@ export default function AdminProduitsPage() {
                 <th className="py-3 px-4 font-semibold">Prix Vente</th>
                 <th className="py-3 px-4 font-semibold">Compatibilité / Versions</th>
                 <th className="py-3 px-4 font-semibold">Stock Total</th>
-                <th className="py-3 px-4 text-right rtl:text-left font-semibold">Statut</th>
+                <th className="py-3 px-4 text-right rtl:text-left font-semibold">Actions &amp; Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-phone-border/60">
@@ -400,11 +625,19 @@ export default function AdminProduitsPage() {
                   <tr key={p.slug} className="hover:bg-phone-surface-elevated/40 transition-colors">
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-phone-void shrink-0 border border-phone-border">
-                          <Image src={p.images[0]} alt={p.title} fill sizes="44px" className="object-cover" />
+                        <div
+                          onClick={() => handleOpenPreview(p)}
+                          className="relative w-11 h-11 rounded-xl overflow-hidden bg-phone-void shrink-0 border border-phone-border cursor-pointer group"
+                        >
+                          <Image src={p.images[0]} alt={p.title} fill sizes="44px" className="object-cover group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="min-w-0 max-w-xs">
-                          <div className="font-semibold text-phone-frost truncate">{p.title}</div>
+                          <div
+                            onClick={() => handleOpenPreview(p)}
+                            className="font-semibold text-phone-frost truncate hover:text-phone-emerald cursor-pointer"
+                          >
+                            {p.title}
+                          </div>
                           <div className="text-[10px] font-mono text-phone-dim">
                             {p.brand} {p.wattage ? `• ${p.wattage}` : ''}
                           </div>
@@ -431,18 +664,51 @@ export default function AdminProduitsPage() {
                     </td>
 
                     <td className="py-3.5 px-4 text-right rtl:text-left whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => toggleProductActive(p.slug)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer select-none ${
-                          p.isActive
-                            ? 'bg-phone-emerald/15 text-phone-emerald border border-phone-emerald/30'
-                            : 'bg-phone-dim/20 text-phone-dim border border-phone-border'
-                        }`}
-                      >
-                        <Power className="w-3 h-3" />
-                        <span>{p.isActive ? 'Actif' : 'Masqué'}</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* Quick View Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPreview(p)}
+                          className="p-1.5 rounded-lg bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-cyan hover:border-phone-cyan/40 transition-colors cursor-pointer"
+                          title="Fiche Produit"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(p)}
+                          className="p-1.5 rounded-lg bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-emerald hover:border-phone-emerald/40 transition-colors cursor-pointer"
+                          title="Modifier"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProduct(p.slug, p.title)}
+                          className="p-1.5 rounded-lg bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-danger hover:border-phone-danger/40 transition-colors cursor-pointer"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Status Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => toggleProductActive(p.slug)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                            p.isActive
+                              ? 'bg-phone-emerald/15 text-phone-emerald border border-phone-emerald/30'
+                              : 'bg-phone-dim/20 text-phone-dim border border-phone-border'
+                          }`}
+                        >
+                          <Power className="w-3 h-3" />
+                          <span>{p.isActive ? 'Actif' : 'Off'}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -460,16 +726,19 @@ export default function AdminProduitsPage() {
               <div className="space-y-1">
                 <div className="text-xs font-mono uppercase text-phone-emerald font-bold flex items-center gap-1.5">
                   <Package className="w-4 h-4 text-phone-emerald" />
-                  <span>Nouveau Référencement Catalogue</span>
+                  <span>{editingProduct ? 'Édition Produit' : 'Nouveau Référencement Catalogue'}</span>
                 </div>
                 <h2 className="text-xl font-bold text-phone-frost">
-                  Ajouter un Accessoire Smartphone
+                  {editingProduct ? `Modifier "${editingProduct.title}"` : 'Ajouter un Accessoire Smartphone'}
                 </h2>
               </div>
 
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  setModalOpen(false);
+                  setEditingProduct(null);
+                }}
                 className="p-2 rounded-xl bg-phone-surface-elevated text-phone-dim hover:text-phone-frost cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -483,7 +752,7 @@ export default function AdminProduitsPage() {
               </div>
             )}
 
-            <form onSubmit={handleCreateProduct} className="space-y-5">
+            <form onSubmit={handleSaveProduct} className="space-y-5">
               {/* Row 1: Title & Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -598,156 +867,144 @@ export default function AdminProduitsPage() {
                 </div>
               </div>
 
-              {/* Row 4: Image File Upload via Cloudinary */}
-              <div className="space-y-2">
+              {/* Row 4: Multi-Image Gallery Builder (Deferred Upload) */}
+              <div className="space-y-3 p-4 rounded-2xl bg-phone-void border border-phone-border">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-phone-muted uppercase font-mono flex items-center gap-1.5">
-                    <UploadCloud className="w-3.5 h-3.5 text-phone-cyan" />
-                    <span>Photo de l&apos;Accessoire *</span>
+                    <ImageIcon className="w-4 h-4 text-phone-cyan" />
+                    <span>Galerie Photos du Produit ({existingImages.length + pendingFiles.length} / 6)</span>
                   </label>
-                  {uploadProvider && (
-                    <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                        uploadProvider === 'cloudinary'
-                          ? 'bg-phone-emerald/10 text-phone-emerald border-phone-emerald/30'
-                          : 'bg-phone-cyan/10 text-phone-cyan border-phone-cyan/30'
-                      }`}
-                    >
-                      {uploadProvider === 'cloudinary' ? '● Cloudinary CDN Actif' : '● Stockage Local Sécurisé'}
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono text-phone-emerald bg-phone-emerald/10 border border-phone-emerald/30 px-2 py-0.5 rounded-full">
+                    ● Envoi Cloudinary uniquement à l&apos;enregistrement
+                  </span>
                 </div>
 
-                {/* Hidden File Input */}
+                {/* Hidden Multi-file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   accept="image/png,image/jpeg,image/webp,image/avif"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
 
-                {!previewUrl && !uploadedImageUrl && !imageUrl ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDragging(true);
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      setIsDragging(false);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDragging(false);
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) handleUploadFile(file);
-                    }}
-                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group ${
-                      isDragging
-                        ? 'border-phone-emerald bg-phone-emerald/10 scale-[1.01]'
-                        : 'border-phone-border hover:border-phone-cyan/50 hover:bg-phone-surface-elevated/40 bg-phone-void'
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-2xl bg-phone-surface border border-phone-border flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <UploadCloud className="w-6 h-6 text-phone-emerald" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-phone-frost">
-                        Cliquez pour sélectionner un fichier ou glissez-déposez ici
-                      </p>
-                      <p className="text-[11px] text-phone-dim mt-0.5">
-                        PNG, JPG, WEBP, AVIF jusqu’à 10 Mo • Synchronisé Cloudinary
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3.5 rounded-2xl bg-phone-void border border-phone-border flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-xl bg-phone-surface border border-phone-border relative overflow-hidden shrink-0">
-                      <Image
-                        src={previewUrl || uploadedImageUrl || imageUrl}
-                        alt="Aperçu du produit"
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                      />
-                      {isUploading && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
-                          <Loader2 className="w-5 h-5 text-phone-emerald animate-spin" />
+                {/* Images Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Existing Saved Images */}
+                  {existingImages.map((imgUrl, idx) => (
+                    <div
+                      key={`exist_${idx}`}
+                      className="relative aspect-square rounded-xl bg-phone-surface border border-phone-border overflow-hidden group shadow-sm"
+                    >
+                      <Image src={imgUrl} alt={`Photo ${idx + 1}`} fill sizes="120px" className="object-cover" />
+                      {idx === 0 && (
+                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-phone-frost text-phone-void shadow-sm z-10">
+                          Couverture
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExistingImage(idx)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-phone-danger text-white flex items-center justify-center transition-colors cursor-pointer z-10"
+                        title="Supprimer cette image"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
+                  ))}
 
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        {isUploading ? (
-                          <span className="text-xs font-semibold text-phone-cyan flex items-center gap-1.5">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Téléversement vers Cloudinary...
-                          </span>
-                        ) : uploadedImageUrl || imageUrl ? (
-                          <span className="text-xs font-semibold text-phone-emerald flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Image prête &amp; synchronisée
-                          </span>
-                        ) : (
-                          <span className="text-xs text-phone-danger">Échec du téléversement</span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-phone-muted truncate font-mono">
-                        {uploadedImageUrl || selectedFileName || imageUrl || 'Image sélectionnée'}
-                      </p>
-
-                      <div className="flex items-center gap-2 pt-1">
+                  {/* Pending New Images (Local 0ms Preview) */}
+                  {pendingFiles.map((item, idx) => {
+                    const isFirstOverall = existingImages.length === 0 && idx === 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className="relative aspect-square rounded-xl bg-phone-surface border-2 border-phone-cyan/60 overflow-hidden group shadow-sm"
+                      >
+                        <Image src={item.preview} alt="Aperçu local" fill sizes="120px" className="object-cover" />
+                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-phone-cyan text-phone-void shadow-sm z-10">
+                          {isFirstOverall ? 'Couverture' : 'Nouvelle'}
+                        </div>
                         <button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                          className="text-[11px] font-bold text-phone-cyan hover:underline cursor-pointer disabled:opacity-50"
+                          onClick={() => handleRemovePendingFile(item.id)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-phone-danger text-white flex items-center justify-center transition-colors cursor-pointer z-10"
+                          title="Supprimer cette image"
                         >
-                          Changer l&apos;image
-                        </button>
-                        <span className="text-phone-border">|</span>
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          disabled={isUploading}
-                          className="text-[11px] font-bold text-phone-danger hover:underline cursor-pointer disabled:opacity-50"
-                        >
-                          Supprimer
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  })}
 
-                {/* Optional Fallback for manual link if needed */}
-                <div className="flex items-center justify-between pt-1">
+                  {/* Add Photos Dropzone Card */}
+                  {existingImages.length + pendingFiles.length < 6 && (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        if (e.dataTransfer.files) handleSelectFiles(e.dataTransfer.files);
+                      }}
+                      className={`relative aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 p-3 text-center cursor-pointer transition-all ${
+                        isDragging
+                          ? 'border-phone-emerald bg-phone-emerald/10'
+                          : 'border-phone-border hover:border-phone-emerald/50 hover:bg-phone-surface-elevated bg-phone-surface'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-phone-surface-elevated border border-phone-border flex items-center justify-center text-phone-emerald">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-bold text-phone-frost leading-tight">
+                        Ajouter des photos
+                      </span>
+                      <span className="text-[9px] font-mono text-phone-dim">JPG, PNG, WEBP</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Optional Fallback for manual link */}
+                <div className="pt-1 flex items-center justify-between text-[11px]">
                   <button
                     type="button"
                     onClick={() => setShowUrlFallback((prev) => !prev)}
-                    className="text-[11px] text-phone-dim hover:text-phone-cyan underline cursor-pointer"
+                    className="text-phone-dim hover:text-phone-cyan underline cursor-pointer"
                   >
-                    {showUrlFallback ? 'Masquer la saisie URL manuelle' : 'Ou coller une URL d’image externe'}
+                    {showUrlFallback ? 'Masquer la saisie URL' : 'Ou ajouter une URL d’image externe'}
                   </button>
+                  {isUploading && (
+                    <span className="text-phone-cyan flex items-center gap-1 font-mono text-[10px]">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Téléversement Cloudinary en cours...
+                    </span>
+                  )}
                 </div>
 
                 {showUrlFallback && (
-                  <div className="pt-1.5">
+                  <div className="flex items-center gap-2 pt-1">
                     <input
                       type="url"
-                      value={imageUrl}
-                      onChange={(e) => {
-                        setImageUrl(e.target.value);
-                        if (e.target.value) {
-                          setPreviewUrl(e.target.value);
-                          setUploadedImageUrl(e.target.value);
-                        }
-                      }}
+                      value={manualImageUrl}
+                      onChange={(e) => setManualImageUrl(e.target.value)}
                       placeholder="https://..."
-                      className="w-full h-10 px-3 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs font-mono focus:outline-none focus:border-phone-emerald"
+                      className="flex-1 h-9 px-3 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs font-mono focus:outline-none focus:border-phone-emerald"
                     />
+                    <button
+                      type="button"
+                      onClick={handleAddManualUrl}
+                      className="h-9 px-3 rounded-xl bg-phone-surface-elevated border border-phone-border text-phone-frost text-xs font-bold hover:bg-phone-surface"
+                    >
+                      Ajouter
+                    </button>
                   </div>
                 )}
               </div>
@@ -845,7 +1102,10 @@ export default function AdminProduitsPage() {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-phone-border">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    setModalOpen(false);
+                    setEditingProduct(null);
+                  }}
                   className="px-4 py-2.5 rounded-xl border border-phone-border text-phone-muted hover:text-phone-frost text-xs font-semibold cursor-pointer"
                 >
                   Annuler
@@ -855,10 +1115,245 @@ export default function AdminProduitsPage() {
                   disabled={submitting}
                   className="px-6 py-2.5 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider cursor-pointer shadow-sm transition-transform hover:scale-[1.02] disabled:opacity-50"
                 >
-                  {submitting ? 'Enregistrement...' : 'Enregistrer le Produit'}
+                  {submitting
+                    ? 'Enregistrement...'
+                    : editingProduct
+                    ? 'Enregistrer les Modifications'
+                    : 'Enregistrer le Produit'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK VIEW PRODUCT DRAWER */}
+      {previewingProduct && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-end">
+          <div className="w-full max-w-lg h-full bg-phone-surface border-l border-phone-border p-6 sm:p-8 space-y-6 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-phone-border pb-4">
+              <div className="flex items-center gap-2 text-xs font-mono uppercase text-phone-cyan font-bold">
+                <Eye className="w-4 h-4" />
+                <span>Fiche Technique Article</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewingProduct(null)}
+                className="p-2 rounded-xl bg-phone-surface-elevated text-phone-dim hover:text-phone-frost cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Product Image Stage */}
+            <div className="space-y-3">
+              <div className="relative aspect-video sm:aspect-square w-full rounded-2xl bg-phone-void border border-phone-border overflow-hidden shadow-sm">
+                <Image
+                  src={previewingProduct.images[previewImageIndex] || previewingProduct.images[0] || 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80'}
+                  alt={previewingProduct.title}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-phone-surface/90 border border-phone-border text-phone-frost">
+                  {previewingProduct.category}
+                </div>
+              </div>
+
+              {/* Thumbnails if multi-image */}
+              {previewingProduct.images.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {previewingProduct.images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPreviewImageIndex(idx)}
+                      className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                        previewImageIndex === idx
+                          ? 'border-phone-cyan scale-105 shadow-sm'
+                          : 'border-phone-border opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <Image src={img} alt={`Miniature ${idx + 1}`} fill className="object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Main Info */}
+            <div className="space-y-2">
+              <div className="text-xs font-mono text-phone-dim">{previewingProduct.brand} • SKU {previewingProduct.slug}</div>
+              <h3 className="text-xl font-bold text-phone-frost">{previewingProduct.title}</h3>
+              <div className="flex items-baseline gap-3 pt-1">
+                <span className="text-2xl font-extrabold font-mono text-phone-emerald">
+                  {previewingProduct.price.toLocaleString('fr-DZ')} DZD
+                </span>
+                {previewingProduct.compareAtPrice && (
+                  <span className="text-sm font-mono text-phone-dim line-through">
+                    {previewingProduct.compareAtPrice.toLocaleString('fr-DZ')} DZD
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Hardware Specs */}
+            <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-phone-void border border-phone-border text-xs">
+              <div>
+                <span className="text-[10px] font-mono text-phone-dim uppercase block">Puissance</span>
+                <span className="font-semibold text-phone-frost">{previewingProduct.wattage || 'Standard'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-mono text-phone-dim uppercase block">Connectique</span>
+                <span className="font-semibold text-phone-frost">{previewingProduct.connector || 'Universel'}</span>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-phone-border/50">
+                <span className="text-[10px] font-mono text-phone-dim uppercase block">Garantie</span>
+                <span className="font-semibold text-phone-emerald">{previewingProduct.warranty || 'Garantie 6 Mois'}</span>
+              </div>
+            </div>
+
+            {/* Variants & Stocks */}
+            <div className="space-y-2">
+              <div className="text-xs font-mono font-bold uppercase text-phone-dim">
+                Variantes &amp; Unités Disponibles ({previewingProduct.variants.length})
+              </div>
+              <div className="space-y-2">
+                {previewingProduct.variants.map((v, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl bg-phone-surface-elevated border border-phone-border flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold text-phone-frost">{v.color}</div>
+                      <div className="text-[11px] text-phone-dim">{v.compatibility}</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono font-bold text-phone-frost">{v.stock}</span>
+                      <span className="text-[10px] text-phone-muted block">en stock</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1 text-xs">
+              <span className="text-[10px] font-mono font-bold uppercase text-phone-dim block">Description</span>
+              <p className="text-phone-muted leading-relaxed">{previewingProduct.description}</p>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-4 border-t border-phone-border flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const p = previewingProduct;
+                  setPreviewingProduct(null);
+                  handleOpenEditModal(p);
+                }}
+                className="flex-1 h-11 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Modifier l&apos;Article</span>
+              </button>
+
+              <Link
+                href={`/produit/${previewingProduct.slug}`}
+                target="_blank"
+                className="h-11 px-4 rounded-xl bg-phone-surface-elevated border border-phone-border hover:text-phone-frost text-phone-muted flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer"
+                title="Voir sur la boutique"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Boutique</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY MANAGEMENT MODAL */}
+      {categoryModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-phone-surface border border-phone-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-phone-border pb-4">
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase text-phone-emerald font-bold flex items-center gap-1.5">
+                  <Tag className="w-4 h-4 text-phone-emerald" />
+                  <span>Gestion des Rayons</span>
+                </div>
+                <h2 className="text-xl font-bold text-phone-frost">Rayons &amp; Catégories ({dynamicCategories.length})</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCategoryModalOpen(false)}
+                className="p-2 rounded-xl bg-phone-surface-elevated text-phone-dim hover:text-phone-frost cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Add New Category Form */}
+            <form onSubmit={handleAddCategory} className="p-4 rounded-2xl bg-phone-void border border-phone-border space-y-3">
+              <div className="text-xs font-mono font-bold uppercase text-phone-frost flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5 text-phone-emerald" />
+                <span>Ajouter un nouveau rayon</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  required
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Nom (ex: Montres Connectées)"
+                  className="w-full h-10 px-3 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs focus:outline-none focus:border-phone-emerald"
+                />
+                <input
+                  type="text"
+                  value={newCatArabic}
+                  onChange={(e) => setNewCatArabic(e.target.value)}
+                  placeholder="Nom en Arabe (ساعات ذكية)"
+                  dir="rtl"
+                  className="w-full h-10 px-3 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs focus:outline-none focus:border-phone-emerald"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={submittingCat || !newCatName.trim()}
+                className="w-full h-10 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                {submittingCat ? 'Ajout en cours...' : 'Ajouter le Rayon'}
+              </button>
+            </form>
+
+            {/* Existing Categories List */}
+            <div className="space-y-2">
+              <div className="text-xs font-mono font-bold uppercase text-phone-dim">Rayons Actifs</div>
+              <div className="divide-y divide-phone-border/50 max-h-60 overflow-y-auto">
+                {dynamicCategories.map((c) => {
+                  const prodCount = products.filter((p) => p.category === c.id).length;
+                  return (
+                    <div key={c.id} className="py-2.5 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-semibold text-phone-frost">{c.name}</span>
+                        {c.arabicName && <span className="text-phone-dim text-[11px] ms-2 font-arabic">({c.arabicName})</span>}
+                        <span className="text-[10px] font-mono text-phone-dim block">
+                          ID: {c.id} • {prodCount} article{prodCount > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(c.id, c.name)}
+                        className="p-1.5 rounded-lg text-phone-dim hover:text-phone-danger hover:bg-phone-danger/10 transition-colors cursor-pointer"
+                        title="Supprimer ce rayon"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

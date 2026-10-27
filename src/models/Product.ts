@@ -23,7 +23,7 @@ const ProductSchema = new Schema<IProductDocument>(
     category: {
       type: String,
       required: true,
-      enum: ['chargeurs', 'cables', 'coques', 'protection', 'audio', 'supports', 'powerbanks'],
+      trim: true,
       index: true,
     },
     price: { type: Number, required: true, min: 0 },

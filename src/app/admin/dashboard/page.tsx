@@ -39,7 +39,11 @@ export default function AdminDashboardPage() {
       const dataProducts = await resProducts.json();
 
       if (dataOrders.success) setOrders(dataOrders.orders);
-      if (Array.isArray(dataProducts)) setProducts(dataProducts);
+      if (dataProducts.success && Array.isArray(dataProducts.products)) {
+        setProducts(dataProducts.products);
+      } else if (Array.isArray(dataProducts)) {
+        setProducts(dataProducts);
+      }
     } catch (e) {
       console.warn('Dashboard fetch error:', e);
     } finally {
@@ -49,6 +53,21 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchData();
+
+    const handleNewOrder = (event: Event) => {
+      const customEvt = event as CustomEvent<IOrder>;
+      if (customEvt.detail) {
+        setOrders((prev) => {
+          if (prev.some((o) => o.orderNumber === customEvt.detail.orderNumber)) return prev;
+          return [customEvt.detail, ...prev];
+        });
+      }
+    };
+
+    window.addEventListener('new_order_received', handleNewOrder);
+    return () => {
+      window.removeEventListener('new_order_received', handleNewOrder);
+    };
   }, []);
 
   const pendingOrders = orders.filter((o) => o.status === 'en_attente');

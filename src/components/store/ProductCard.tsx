@@ -66,45 +66,25 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Link>
 
           {/* Badges Container */}
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pointer-events-none z-10">
+          <div className="absolute top-3 left-3 right-3 flex flex-wrap gap-1.5 pointer-events-none z-10">
             {product.badges && product.badges.length > 0 && (
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-phone-frost text-phone-void shadow-sm">
                 {product.badges[0]}
               </span>
             )}
             {product.wattage && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-phone-void/80 border border-phone-border text-phone-emerald backdrop-blur-sm">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-phone-void/85 border border-phone-border text-phone-emerald backdrop-blur-sm">
                 {product.wattage}
               </span>
             )}
           </div>
 
-          {/* In-Stock Status Dot */}
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-phone-void/85 border border-phone-border backdrop-blur-sm z-10">
+          {/* In-Stock Status Pill (Moved to bottom corner to prevent overlap) */}
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-phone-void/90 border border-phone-border backdrop-blur-md shadow-sm z-10 pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-phone-emerald animate-pulse" />
-            <span className="text-[9px] font-mono uppercase font-semibold text-phone-frost">
+            <span className="text-[9px] font-mono uppercase font-bold tracking-wider text-phone-frost">
               {t('inStock')}
             </span>
-          </div>
-
-          {/* Hover Quick Actions Overlay */}
-          <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-            <button
-              type="button"
-              onClick={handleOpenFastOrder}
-              className="flex-1 h-10.5 rounded-xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            >
-              <Zap className="w-4 h-4 fill-phone-void text-phone-void" />
-              <span>{t('expressOrder')}</span>
-            </button>
-
-            <Link
-              href={`/produit/${product.slug}`}
-              className="h-10.5 w-10.5 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:bg-phone-surface-hover flex items-center justify-center shrink-0 transition-transform hover:scale-105 cursor-pointer"
-              title="Voir les détails"
-            >
-              <Eye className="w-4 h-4" />
-            </Link>
           </div>
         </div>
 
