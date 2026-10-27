@@ -63,19 +63,17 @@ export default function Navbar() {
         </nav>
 
         {/* Action Controls & Language Switcher */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* Trilingual Switcher (Hidden on mobile, accessible in drawer) */}
-          <div className="hidden sm:inline-flex">
-            <LanguageSwitcher />
-          </div>
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Compact Dropdown Switcher */}
+          <LanguageSwitcher />
 
           {/* Quick Search Link */}
           <Link
             href="/boutique"
             aria-label={t('navSearch')}
-            className="p-2 sm:p-2.5 h-10 w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost hover:bg-phone-surface-hover transition-colors cursor-pointer shrink-0"
+            className="p-2 sm:p-2.5 h-9 sm:h-10 w-9 sm:w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost hover:bg-phone-surface-hover transition-colors cursor-pointer shrink-0"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </Link>
 
           {/* Cart Trigger */}
@@ -83,9 +81,9 @@ export default function Navbar() {
             type="button"
             onClick={openCart}
             aria-label={t('navCart')}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 h-10 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover transition-all cursor-pointer relative group shrink-0"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 h-9 sm:h-10 rounded-xl bg-phone-surface border border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover transition-all cursor-pointer relative group shrink-0"
           >
-            <ShoppingBag className="w-4 h-4 text-phone-frost group-hover:text-phone-emerald transition-colors" />
+            <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-phone-frost group-hover:text-phone-emerald transition-colors" />
             <span className="text-xs font-bold font-mono">
               {itemCount > 0 ? itemCount : 0}
             </span>
@@ -98,9 +96,9 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2.5 h-10 w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost cursor-pointer shrink-0"
+            className="lg:hidden p-2 sm:p-2.5 h-9 sm:h-10 w-9 sm:w-10 flex items-center justify-center rounded-xl bg-phone-surface border border-phone-border text-phone-muted hover:text-phone-frost cursor-pointer shrink-0"
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
         </div>
       </div>
