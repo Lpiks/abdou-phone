@@ -19,16 +19,29 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [isFastModalOpen, setIsFastModalOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  const defaultVariant = product.variants[0] || {
+  const totalStock = product.variants ? product.variants.reduce((s, v) => s + v.stock, 0) : 10;
+  const isOutOfStock = totalStock <= 0;
+  const hasMultipleVariants = product.variants && product.variants.length > 1;
+
+  const defaultVariant = (product.variants && product.variants.find((v) => v.stock > 0)) || product.variants[0] || {
     compatibility: 'Universel',
     color: 'Standard',
-    stock: 10,
+    stock: 0,
   };
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
+  const handleActionClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    if (isOutOfStock) return;
+
+    // If multiple models or colors exist, open FastOrderModal so user can choose
+    if (hasMultipleVariants) {
+      setIsFastModalOpen(true);
+      return;
+    }
+
+    // Only 1 variant and has stock: direct fast add
     addItem({
       productId: product._id || product.slug,
       title: product.title,
@@ -79,11 +92,19 @@ export default function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          {/* In-Stock Status Pill (Moved to bottom corner to prevent overlap) */}
+          {/* In-Stock or Out-of-Stock Status Pill */}
           <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-phone-void/90 border border-phone-border backdrop-blur-md shadow-sm z-10 pointer-events-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-phone-emerald animate-pulse" />
-            <span className="text-[9px] font-mono uppercase font-bold tracking-wider text-phone-frost">
-              {t('inStock')}
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOutOfStock ? 'bg-phone-danger' : 'bg-phone-emerald animate-pulse'
+              }`}
+            />
+            <span
+              className={`text-[9px] font-mono uppercase font-bold tracking-wider ${
+                isOutOfStock ? 'text-phone-danger' : 'text-phone-frost'
+              }`}
+            >
+              {isOutOfStock ? 'Épuisé' : t('inStock')}
             </span>
           </div>
         </div>
@@ -126,11 +147,14 @@ export default function ProductCard({ product }: ProductCardProps) {
 
             <button
               type="button"
-              onClick={handleQuickAdd}
-              aria-label={t('addToCart')}
-              className={`h-11 px-4 sm:px-4.5 rounded-xl border flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer active:scale-95 shadow-sm ${
+              disabled={isOutOfStock}
+              onClick={handleActionClick}
+              aria-label={isOutOfStock ? 'Épuisé' : hasMultipleVariants ? 'Choisir le modèle' : t('addToCart')}
+              className={`h-11 px-4 sm:px-4.5 rounded-xl border flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
                 justAdded
                   ? 'bg-phone-emerald text-phone-void border-phone-emerald shadow-glow'
+                  : isOutOfStock
+                  ? 'bg-phone-surface border-phone-border text-phone-dim'
                   : 'bg-phone-surface-elevated border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover hover:text-white'
               }`}
             >
@@ -138,6 +162,13 @@ export default function ProductCard({ product }: ProductCardProps) {
                 <>
                   <Check className="w-4 h-4" />
                   <span>{t('addedToCart')}</span>
+                </>
+              ) : isOutOfStock ? (
+                <span>Rupture</span>
+              ) : hasMultipleVariants ? (
+                <>
+                  <Zap className="w-4 h-4 text-phone-emerald" />
+                  <span>Choisir</span>
                 </>
               ) : (
                 <>

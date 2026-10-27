@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllProducts, createProduct, updateProduct, deleteProduct } from '@/lib/orders-store';
+import { listAllProducts, getProductBySlug, createProduct, updateProduct, deleteProduct } from '@/lib/orders-store';
 import { recordAuditLog, maskIp } from '@/lib/audit';
 import { verifyToken } from '@/lib/auth';
+import { deleteImage } from '@/lib/cloudinary';
 
 function checkAuth(req: NextRequest): boolean {
   const token = req.cookies.get('abdou_admin_token')?.value;
@@ -149,6 +150,21 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Identifiant slug manquant' }, { status: 400 });
     }
 
+    // Clean up removed images from Cloudinary if image list was updated
+    if (Array.isArray(updates.images)) {
+      try {
+        const existing = await getProductBySlug(slug);
+        if (existing && Array.isArray(existing.images)) {
+          const removedImages = existing.images.filter((img) => !updates.images.includes(img));
+          for (const rem of removedImages) {
+            await deleteImage(rem);
+          }
+        }
+      } catch (e) {
+        console.warn('[Cloudinary Cleanup Error]', e);
+      }
+    }
+
     const updated = await updateProduct(slug, updates);
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Produit introuvable' }, { status: 404 });
@@ -185,6 +201,18 @@ export async function DELETE(req: NextRequest) {
 
     if (!slug) {
       return NextResponse.json({ success: false, error: 'Identifiant slug manquant' }, { status: 400 });
+    }
+
+    // Clean up all images from Cloudinary before deleting product document
+    try {
+      const existing = await getProductBySlug(slug);
+      if (existing && Array.isArray(existing.images)) {
+        for (const img of existing.images) {
+          await deleteImage(img);
+        }
+      }
+    } catch (e) {
+      console.warn('[Cloudinary Delete On Product Removal Error]', e);
     }
 
     const success = await deleteProduct(slug, true);

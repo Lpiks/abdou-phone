@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createOrder } from '@/lib/orders-store';
+import { createOrder, getProductBySlug } from '@/lib/orders-store';
 import wilayasData from '@/data/algeria-wilayas.json';
 
 export async function POST(req: NextRequest) {
@@ -33,7 +33,29 @@ export async function POST(req: NextRequest) {
     const calculatedDeliveryFee =
       deliveryType === 'bureau' ? wilaya.deskDeliveryFee : wilaya.homeDeliveryFee;
 
-    const subtotal = items.reduce(
+    // Verify each item and enforce genuine price from database (Anti-Tampering)
+    const verifiedItems = await Promise.all(
+      items.map(async (it: { slug: string; productId?: string; title?: string; image?: string; price?: number; quantity?: number; selectedCompatibility?: string; selectedColor?: string }) => {
+        const prod = await getProductBySlug(it.slug);
+        const verifiedPrice = prod ? prod.price : Math.max(100, Number(it.price) || 100);
+        const verifiedTitle = prod ? prod.title : (it.title || 'Accessoire Smartphone');
+        const verifiedImage = prod && prod.images && prod.images[0] ? prod.images[0] : (it.image || '');
+        const qty = Math.max(1, Number(it.quantity) || 1);
+
+        return {
+          productId: prod?._id || it.productId || it.slug,
+          title: verifiedTitle,
+          slug: it.slug,
+          image: verifiedImage,
+          price: verifiedPrice,
+          quantity: qty,
+          selectedCompatibility: it.selectedCompatibility || 'Universel',
+          selectedColor: it.selectedColor || 'Standard',
+        };
+      })
+    );
+
+    const subtotal = verifiedItems.reduce(
       (sum: number, it: { price: number; quantity: number }) => sum + it.price * it.quantity,
       0
     );
@@ -50,16 +72,7 @@ export async function POST(req: NextRequest) {
         address: customer.address?.trim() || `Livraison à ${wilaya.name}`,
         notes: notes?.trim() || undefined,
       },
-      items: items.map((it) => ({
-        productId: it.productId,
-        title: it.title,
-        slug: it.slug,
-        image: it.image,
-        price: it.price,
-        quantity: it.quantity,
-        selectedCompatibility: it.selectedCompatibility || 'Universel',
-        selectedColor: it.selectedColor || 'Standard',
-      })),
+      items: verifiedItems,
       subtotal,
       deliveryType: deliveryType === 'bureau' ? 'bureau' : 'domicile',
       deliveryFee: calculatedDeliveryFee,

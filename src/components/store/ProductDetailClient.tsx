@@ -27,18 +27,6 @@ interface ProductDetailClientProps {
 export default function ProductDetailClient({ initialProduct }: ProductDetailClientProps) {
   const { addItem } = useCart();
   const [product] = useState<IProduct>(initialProduct);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [isFastModalOpen, setIsFastModalOpen] = useState(false);
-  const [addedNotice, setAddedNotice] = useState(false);
-
-  const images = product.images && product.images.length > 0
-    ? product.images
-    : ['https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80'];
-
-  const currentImage = images[activeImageIndex] || images[0];
-
   const variants = product.variants && product.variants.length > 0
     ? product.variants
     : [
@@ -49,9 +37,29 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
         },
       ];
 
+  const initialVariantIdx = Math.max(
+    0,
+    variants.findIndex((v) => v.stock > 0)
+  );
+
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(initialVariantIdx);
+  const [quantity, setQuantity] = useState(1);
+  const [isFastModalOpen, setIsFastModalOpen] = useState(false);
+  const [addedNotice, setAddedNotice] = useState(false);
+
+  const images = product.images && product.images.length > 0
+    ? product.images
+    : ['https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80'];
+
+  const currentImage = images[activeImageIndex] || images[0];
   const activeVariant = variants[selectedVariantIndex] || variants[0];
+  const totalStock = variants.reduce((s, v) => s + v.stock, 0);
+  const isOutOfStock = activeVariant.stock <= 0;
+  const isAllOutOfStock = totalStock <= 0;
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return;
     addItem({
       productId: product._id || product.slug,
       title: product.title,
@@ -120,9 +128,17 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
 
               {/* In-Stock Indicator */}
               <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full bg-phone-void/90 border border-phone-border backdrop-blur-sm z-10">
-                <span className="w-2 h-2 rounded-full bg-phone-emerald animate-pulse" />
-                <span className="text-xs font-mono font-bold uppercase text-phone-frost">
-                  En Stock (Livraison Immédiate)
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isOutOfStock ? 'bg-phone-danger' : 'bg-phone-emerald animate-pulse'
+                  }`}
+                />
+                <span
+                  className={`text-xs font-mono font-bold uppercase ${
+                    isOutOfStock ? 'text-phone-danger' : 'text-phone-frost'
+                  }`}
+                >
+                  {isOutOfStock ? 'Rupture de Stock' : 'En Stock (Livraison Immédiate)'}
                 </span>
               </div>
             </div>
@@ -195,21 +211,40 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                     <span className="text-phone-frost font-mono">{activeVariant.compatibility}</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {variants.map((v, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedVariantIndex(idx)}
-                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                          selectedVariantIndex === idx
-                            ? 'bg-phone-emerald/15 border-phone-emerald text-phone-emerald font-bold shadow-sm'
-                            : 'bg-phone-surface border-phone-border text-phone-frost hover:border-phone-border-light'
-                        }`}
-                      >
-                        <div className="text-xs truncate">{v.compatibility}</div>
-                        <div className="text-[11px] text-phone-dim font-normal mt-0.5">{v.color}</div>
-                      </button>
-                    ))}
+                    {variants.map((v, idx) => {
+                      const out = v.stock <= 0;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          disabled={out}
+                          onClick={() => {
+                            setSelectedVariantIndex(idx);
+                            if (quantity > v.stock && v.stock > 0) {
+                              setQuantity(v.stock);
+                            }
+                          }}
+                          className={`p-3 rounded-2xl border text-left transition-all ${
+                            out
+                              ? 'bg-phone-surface/40 border-phone-border/40 opacity-40 cursor-not-allowed select-none'
+                              : selectedVariantIndex === idx
+                              ? 'bg-phone-emerald/15 border-phone-emerald text-phone-emerald font-bold shadow-sm cursor-pointer'
+                              : 'bg-phone-surface border-phone-border text-phone-frost hover:border-phone-border-light cursor-pointer'
+                          }`}
+                        >
+                          <div className="text-xs truncate flex items-center justify-between">
+                            <span>{v.compatibility}</span>
+                            {out && <span className="text-[9px] font-mono text-phone-danger">Épuisé</span>}
+                          </div>
+                          <div className="text-[11px] text-phone-dim font-normal mt-0.5 flex items-center justify-between">
+                            <span>{v.color}</span>
+                            {!out && v.stock <= 5 && (
+                              <span className="text-[9px] font-mono text-amber-400">Reste {v.stock}</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -222,41 +257,52 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                 <div className="flex items-center gap-3 p-1.5 rounded-xl bg-phone-surface border border-phone-border">
                   <button
                     type="button"
+                    disabled={quantity <= 1 || isOutOfStock}
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-8 h-8 rounded-lg bg-phone-surface-elevated text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg bg-phone-surface-elevated text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <span className="w-8 text-center font-mono font-bold text-phone-frost text-sm">
-                    {quantity}
+                    {isOutOfStock ? 0 : quantity}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-8 h-8 rounded-lg bg-phone-surface-elevated text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer"
+                    disabled={isOutOfStock || quantity >= activeVariant.stock}
+                    onClick={() => setQuantity(Math.min(activeVariant.stock, quantity + 1))}
+                    className="w-8 h-8 rounded-lg bg-phone-surface-elevated text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                {!isOutOfStock && activeVariant.stock > 0 && (
+                  <span className="text-[11px] font-mono text-phone-dim">
+                    (Max: {activeVariant.stock} pcs)
+                  </span>
+                )}
               </div>
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-2">
                 <button
                   type="button"
+                  disabled={isOutOfStock}
                   onClick={() => setIsFastModalOpen(true)}
-                  className="w-full h-14 rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  className="w-full h-14 rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-5 h-5 fill-phone-void text-phone-void" />
-                  <span>Commander Express (Sans inscription)</span>
+                  <span>{isOutOfStock ? 'Variante Épuisée' : 'Commander Express (Sans inscription)'}</span>
                 </button>
 
                 <button
                   type="button"
+                  disabled={isOutOfStock}
                   onClick={handleAddToCart}
-                  className={`w-full h-12 rounded-2xl border font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  className={`w-full h-12 rounded-2xl border font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                     addedNotice
                       ? 'bg-phone-emerald text-phone-void border-phone-emerald'
+                      : isOutOfStock
+                      ? 'bg-phone-surface border-phone-border text-phone-dim'
                       : 'bg-phone-surface border-phone-border text-phone-frost hover:border-phone-emerald/50 hover:bg-phone-surface-hover'
                   }`}
                 >
@@ -265,6 +311,8 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                       <Check className="w-4 h-4" />
                       <span>Ajouté au Panier avec succès</span>
                     </>
+                  ) : isOutOfStock ? (
+                    <span>Non disponible en stock</span>
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />

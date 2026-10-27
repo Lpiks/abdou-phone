@@ -123,3 +123,65 @@ async function saveLocally(buffer: Buffer, originalFilename: string): Promise<Up
     bytes: buffer.length,
   };
 }
+
+/**
+ * Extract public_id from Cloudinary URL or return the public_id as is.
+ * e.g. "https://res.cloudinary.com/rvoexlnt/image/upload/v1793072106/abdou-phone/products/ldydyuqr76fg5fsltxqm.jpg"
+ *  -> "abdou-phone/products/ldydyuqr76fg5fsltxqm"
+ */
+export function extractPublicId(urlOrId: string): string | null {
+  if (!urlOrId) return null;
+  if (!urlOrId.includes('cloudinary.com')) {
+    return urlOrId.startsWith('/') ? null : urlOrId;
+  }
+  try {
+    const parts = urlOrId.split('/upload/');
+    if (parts.length < 2) return null;
+    const afterUpload = parts[1];
+    // Remove version prefix if present: v1234567890/
+    const withoutVersion = afterUpload.replace(/^v\d+\//, '');
+    // Remove file extension
+    const withoutExt = withoutVersion.replace(/\.[^/.]+$/, '');
+    return withoutExt;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete an image asset from Cloudinary or local uploads directory.
+ */
+export async function deleteImage(urlOrPublicId: string): Promise<boolean> {
+  if (!urlOrPublicId) return false;
+
+  // 1. If it's a local file upload (/uploads/products/...)
+  if (urlOrPublicId.startsWith('/uploads/products/')) {
+    try {
+      const fileName = path.basename(urlOrPublicId);
+      const filePath = path.join(process.cwd(), 'public', 'uploads', 'products', fileName);
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[Storage] Failed to delete local image file:', e);
+    }
+    return false;
+  }
+
+  // 2. If it's on Cloudinary
+  if (isCloudinaryConfigured()) {
+    const publicId = extractPublicId(urlOrPublicId);
+    if (!publicId) return false;
+    try {
+      const cld = getCloudinary();
+      const res = await cld.uploader.destroy(publicId, { resource_type: 'image' });
+      return res.result === 'ok';
+    } catch (err) {
+      console.warn('[Cloudinary] Failed to delete image asset:', publicId, err);
+      return false;
+    }
+  }
+
+  return false;
+}

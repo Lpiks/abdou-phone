@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { X, Zap, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, Zap, ShieldCheck, CheckCircle2, Plus, Minus } from 'lucide-react';
 import { IProduct } from '@/types';
 import CustomSelect from '@/components/common/CustomSelect';
 import wilayasData from '@/data/algeria-wilayas.json';
@@ -19,8 +19,13 @@ export default function FastOrderModal({ product, isOpen, onClose }: FastOrderMo
   const router = useRouter();
   const { t, dir } = useLanguage();
 
+  const initialVariantIdx = Math.max(
+    0,
+    product.variants.findIndex((v) => v.stock > 0)
+  );
+
   // State
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(initialVariantIdx);
   const [quantity, setQuantity] = useState(1);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -74,8 +79,9 @@ export default function FastOrderModal({ product, isOpen, onClose }: FastOrderMo
     }
 
     const cleanPhone = phone.trim().replace(/\s+/g, '');
-    if (!cleanPhone || cleanPhone.length < 9) {
-      setErrorMsg('Veuillez saisir un numéro de téléphone valide (ex: 0550 12 34 56).');
+    const isAlgerianMobile = /^(0)(5|6|7)\d{8}$/.test(cleanPhone) || /^(\+213|00213)(5|6|7)\d{8}$/.test(cleanPhone) || /^(5|6|7)\d{8}$/.test(cleanPhone);
+    if (!isAlgerianMobile) {
+      setErrorMsg('Veuillez saisir un numéro de mobile algérien valide (ex: 0550 12 34 56, 06.. ou 07..).');
       return;
     }
 
@@ -189,21 +195,38 @@ export default function FastOrderModal({ product, isOpen, onClose }: FastOrderMo
                 {t('selectModel')}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {product.variants.map((v, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setSelectedVariantIndex(i)}
-                    className={`px-3 py-2.5 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer ${
-                      selectedVariantIndex === i
-                        ? 'bg-phone-emerald/15 border-phone-emerald text-phone-emerald font-bold shadow-sm'
-                        : 'bg-phone-surface-elevated border-phone-border text-phone-frost hover:border-phone-border-light'
-                    }`}
-                  >
-                    <div className="truncate">{v.compatibility}</div>
-                    <div className="text-[10px] text-phone-dim mt-0.5">{v.color}</div>
-                  </button>
-                ))}
+                {product.variants.map((v, i) => {
+                  const out = v.stock <= 0;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={out}
+                      onClick={() => {
+                        setSelectedVariantIndex(i);
+                        if (quantity > v.stock && v.stock > 0) setQuantity(v.stock);
+                      }}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
+                        out
+                          ? 'bg-phone-surface/30 border-phone-border/40 opacity-40 cursor-not-allowed select-none'
+                          : selectedVariantIndex === i
+                          ? 'bg-phone-emerald/15 border-phone-emerald text-phone-emerald font-bold shadow-sm cursor-pointer'
+                          : 'bg-phone-surface-elevated border-phone-border text-phone-frost hover:border-phone-border-light cursor-pointer'
+                      }`}
+                    >
+                      <div className="truncate flex items-center justify-between">
+                        <span>{v.compatibility}</span>
+                        {out && <span className="text-[9px] font-mono text-phone-danger">Épuisé</span>}
+                      </div>
+                      <div className="text-[10px] text-phone-dim mt-0.5 flex items-center justify-between">
+                        <span>{v.color}</span>
+                        {!out && v.stock <= 5 && (
+                          <span className="text-[9px] font-mono text-amber-400">Reste {v.stock}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -323,6 +346,41 @@ export default function FastOrderModal({ product, isOpen, onClose }: FastOrderMo
             </div>
           </div>
 
+          {/* Quantity Selector */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-phone-surface-elevated border border-phone-border">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold uppercase tracking-wider text-phone-frost">
+                Quantité :
+              </span>
+              {activeVariant.stock > 0 && activeVariant.stock <= 5 && (
+                <span className="text-[10px] font-mono text-amber-400">
+                  Plus que {activeVariant.stock} en stock !
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={quantity <= 1 || activeVariant.stock <= 0}
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-8 h-8 rounded-lg bg-phone-surface text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <span className="w-8 text-center font-mono font-bold text-phone-frost text-sm">
+                {activeVariant.stock <= 0 ? 0 : quantity}
+              </span>
+              <button
+                type="button"
+                disabled={activeVariant.stock <= 0 || quantity >= activeVariant.stock}
+                onClick={() => setQuantity(Math.min(activeVariant.stock, quantity + 1))}
+                className="w-8 h-8 rounded-lg bg-phone-surface text-phone-frost flex items-center justify-center hover:bg-phone-border transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
           {/* Quantity and Order Recap */}
           <div className="p-4 rounded-2xl bg-phone-void border border-phone-border space-y-2">
             <div className="flex items-center justify-between text-xs text-phone-muted">
@@ -349,11 +407,17 @@ export default function FastOrderModal({ product, isOpen, onClose }: FastOrderMo
           <div className="space-y-2.5 pt-2">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full h-15 sm:h-16 min-h-[58px] sm:min-h-[62px] rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || activeVariant.stock <= 0}
+              className="w-full h-15 sm:h-16 min-h-[58px] sm:min-h-[62px] rounded-2xl bg-phone-frost hover:bg-white text-phone-void font-extrabold text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-5 h-5 text-phone-void" />
-              <span>{isSubmitting ? '...' : t('confirmOrderBtn')}</span>
+              <span>
+                {isSubmitting
+                  ? '...'
+                  : activeVariant.stock <= 0
+                  ? 'Variante Épuisée'
+                  : t('confirmOrderBtn')}
+              </span>
             </button>
             <p className="text-center text-[11px] text-phone-dim leading-relaxed">
               {t('codNotice')}

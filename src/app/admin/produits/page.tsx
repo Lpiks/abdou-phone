@@ -65,6 +65,8 @@ export default function AdminProduitsPage() {
   const [wattage, setWattage] = useState('65W GaN Fast Charge');
   const [connector, setConnector] = useState('Type-C vers Type-C');
   const [warranty, setWarranty] = useState('Garantie 6 Mois Échange à Neuf');
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState('Nouveau');
   // Multi-Image Gallery State (Deferred Cloudinary Upload on Save)
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
@@ -270,6 +272,8 @@ export default function AdminProduitsPage() {
     setWattage('65W GaN Fast Charge');
     setConnector('Type-C vers Type-C');
     setWarranty('Garantie 6 Mois Échange à Neuf');
+    setIsFeatured(false);
+    setSelectedBadge('Nouveau');
     setDescription('');
     setExistingImages([]);
     setPendingFiles([]);
@@ -307,6 +311,8 @@ export default function AdminProduitsPage() {
     setWattage(prod.wattage || '');
     setConnector(prod.connector || '');
     setWarranty(prod.warranty || '');
+    setIsFeatured(Boolean(prod.isFeatured));
+    setSelectedBadge(prod.badges && prod.badges.length > 0 ? prod.badges[0] : '');
     setDescription(prod.description || '');
     setExistingImages(Array.isArray(prod.images) ? [...prod.images] : []);
     setPendingFiles([]);
@@ -454,6 +460,8 @@ export default function AdminProduitsPage() {
             description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
             images: finalImages,
             variants,
+            isFeatured,
+            badges: selectedBadge ? [selectedBadge] : [],
           }),
         });
 
@@ -487,7 +495,8 @@ export default function AdminProduitsPage() {
             description: description || `Accessoire smartphone officiel haute performance sélectionné par Abdou Phone.`,
             images: finalImages,
             variants,
-            isFeatured: true,
+            isFeatured,
+            badges: selectedBadge ? [selectedBadge] : [],
             isActive: true,
           }),
         });
@@ -864,6 +873,58 @@ export default function AdminProduitsPage() {
                     placeholder="Ex: Garantie 6 Mois Échange"
                     className="w-full h-11 px-3.5 rounded-xl bg-phone-void border border-phone-border text-phone-frost text-xs focus:outline-none focus:border-phone-emerald"
                   />
+                </div>
+              </div>
+
+              {/* Row 3.5: Badges & Featured Toggle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-2xl bg-phone-void/60 border border-phone-border">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-phone-muted uppercase font-mono flex items-center gap-1.5">
+                    <span>Badge Promotionnel (Optionnel)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={selectedBadge}
+                      onChange={(e) => setSelectedBadge(e.target.value)}
+                      placeholder="Ex: Nouveau, Best-Seller, Promo -20%, GaN Tech"
+                      className="w-full h-10 px-3.5 rounded-xl bg-phone-surface border border-phone-border text-phone-frost text-xs font-medium focus:outline-none focus:border-phone-emerald"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {['Nouveau', 'Best-Seller', 'Promo', 'GaN Tech', 'MagSafe'].map((bg) => (
+                      <button
+                        key={bg}
+                        type="button"
+                        onClick={() => setSelectedBadge(selectedBadge === bg ? '' : bg)}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                          selectedBadge === bg
+                            ? 'bg-phone-frost text-phone-void border-phone-frost font-bold'
+                            : 'bg-phone-surface border-phone-border text-phone-dim hover:text-phone-frost'
+                        }`}
+                      >
+                        {bg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-center space-y-1.5 sm:border-l sm:border-phone-border sm:pl-4">
+                  <label className="text-xs font-semibold text-phone-muted uppercase font-mono">
+                    Mise en Avant
+                  </label>
+                  <label className="flex items-center gap-2.5 p-2 rounded-xl bg-phone-surface border border-phone-border hover:border-phone-border-light cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isFeatured}
+                      onChange={(e) => setIsFeatured(e.target.checked)}
+                      className="w-4 h-4 rounded text-phone-emerald focus:ring-phone-emerald accent-phone-emerald cursor-pointer"
+                    />
+                    <div className="text-xs">
+                      <span className="font-bold text-phone-frost block">En Vedette sur l&apos;Accueil</span>
+                      <span className="text-[10px] text-phone-dim">Section « Les Accessoires les plus demandés »</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 

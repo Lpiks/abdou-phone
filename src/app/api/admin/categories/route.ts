@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listAllCategories, createCategory, updateCategory, deleteCategory } from '@/lib/orders-store';
+import { listAllCategories, listAllProducts, createCategory, updateCategory, deleteCategory } from '@/lib/orders-store';
+import { connectDB } from '@/lib/db';
+import Product from '@/models/Product';
 import { verifyToken } from '@/lib/auth';
 import { recordAuditLog, maskIp } from '@/lib/audit';
 
@@ -96,9 +98,30 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const reassignTo = searchParams.get('reassignTo');
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Identifiant catégorie manquant.' }, { status: 400 });
+    }
+
+    // Safety Check: Prevent creating orphaned products without a category pill
+    const linkedProducts = await listAllProducts(id);
+    if (linkedProducts.length > 0 && !reassignTo) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Impossible de supprimer ce rayon : ${linkedProducts.length} produit(s) y sont rattachés. Veuillez d'abord déplacer ces articles vers un autre rayon.`,
+          linkedCount: linkedProducts.length,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (linkedProducts.length > 0 && reassignTo) {
+      const mongooseInstance = await connectDB();
+      if (mongooseInstance) {
+        await Product.updateMany({ category: id }, { $set: { category: reassignTo } });
+      }
     }
 
     const success = await deleteCategory(id);
