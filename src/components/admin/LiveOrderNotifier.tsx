@@ -32,10 +32,29 @@ function playOrderChime() {
 }
 
 export default function LiveOrderNotifier() {
-  const [liveConnected, setLiveConnected] = useState(false);
   const [latestOrder, setLatestOrder] = useState<IOrder | null>(null);
-  const [soundTestTriggered, setSoundTestTriggered] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Auto-unlock audio on user's first click or touch anywhere on the page
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -43,10 +62,6 @@ export default function LiveOrderNotifier() {
     try {
       es = new EventSource('/api/admin/live-orders');
       eventSourceRef.current = es;
-
-      es.addEventListener('connected', () => {
-        setLiveConnected(true);
-      });
 
       es.addEventListener('new_order', (e: MessageEvent) => {
         try {
@@ -62,10 +77,6 @@ export default function LiveOrderNotifier() {
           console.warn('[SSE] Parse new order failed:', err);
         }
       });
-
-      es.onerror = () => {
-        setLiveConnected(false);
-      };
     } catch (err) {
       console.warn('[SSE] Connection error:', err);
     }
@@ -79,42 +90,7 @@ export default function LiveOrderNotifier() {
 
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        {/* Live Badge in Admin Header */}
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-phone-surface border border-phone-border text-[10px] font-mono select-none">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              liveConnected ? 'bg-phone-emerald animate-pulse' : 'bg-phone-dim'
-            }`}
-          />
-          <span className={liveConnected ? 'text-phone-emerald font-bold' : 'text-phone-dim'}>
-            {liveConnected ? 'Live 0ms' : 'Connexion...'}
-          </span>
-        </div>
-
-        {/* Audio Test & Unlock Button */}
-        <button
-          type="button"
-          onClick={() => {
-            playOrderChime();
-            setSoundTestTriggered(true);
-            setTimeout(() => setSoundTestTriggered(false), 1500);
-          }}
-          className={`px-2 py-1 rounded-full border text-[10px] font-mono flex items-center gap-1 transition-colors cursor-pointer ${
-            soundTestTriggered
-              ? 'bg-phone-emerald/20 border-phone-emerald text-phone-emerald font-bold'
-              : 'bg-phone-surface border-phone-border text-phone-muted hover:text-phone-frost'
-          }`}
-          title="Tester le carillon et débloquer l'audio du navigateur"
-        >
-          <Volume2 className="w-3 h-3 text-phone-emerald" />
-          <span className="hidden sm:inline">
-            {soundTestTriggered ? 'Bip !' : 'Son'}
-          </span>
-        </button>
-      </div>
-
-      {/* Floating 0ms Instant Notification Toast */}
+      {/* Floating Instant Notification Toast */}
       {latestOrder && (
         <div className="fixed top-4 right-4 z-50 max-w-sm w-full bg-phone-surface-elevated/95 border-2 border-phone-emerald text-phone-frost p-4 rounded-2xl shadow-2xl backdrop-blur-md animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-start justify-between gap-3">

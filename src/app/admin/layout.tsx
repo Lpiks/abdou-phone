@@ -53,6 +53,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       className="h-screen w-screen overflow-hidden bg-phone-void text-phone-frost hardware-grid flex flex-col md:flex-row"
       dir={isRtl ? 'rtl' : 'ltr'}
     >
+      {/* Background 24/7 Live Order SSE Listener & Audio & Toast */}
+      <LiveOrderNotifier />
+
       {/* Top Mobile/Tablet Header Bar */}
       <header className="md:hidden w-full bg-phone-surface border-b border-phone-border px-4 py-3 flex items-center justify-between shrink-0 z-40">
         <div className="flex items-center gap-3">
@@ -68,7 +71,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <div className="flex items-center gap-2">
-          <LiveOrderNotifier />
           <LanguageSwitcher />
         </div>
       </header>
@@ -83,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar Navigation (Desktop Fixed & Mobile Sliding Drawer) */}
       <aside
-        className={`fixed md:sticky top-0 h-screen w-72 md:w-64 lg:w-72 bg-phone-surface border-r rtl:border-r-0 rtl:border-l border-phone-border flex flex-col justify-between shrink-0 z-50 transition-transform duration-300 ${
+        className={`fixed md:sticky top-0 h-screen w-72 md:w-64 lg:w-72 bg-phone-surface border-r rtl:border-r-0 rtl:border-l border-phone-border flex flex-col justify-between shrink-0 z-50 transition-transform duration-300 overflow-x-hidden ${
           mobileMenuOpen
             ? 'translate-x-0'
             : isRtl
@@ -91,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             : '-translate-x-full md:translate-x-0'
         }`}
       >
-        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto max-h-[calc(100vh-140px)]">
+        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-140px)]">
           {/* Brand & Language Switcher (Desktop) */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -110,10 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Shield className="w-3 h-3 text-phone-emerald" />
                 <span>{t('adminNavRole')}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <LiveOrderNotifier />
-                <LanguageSwitcher />
-              </div>
+              <LanguageSwitcher />
             </div>
           </div>
 
