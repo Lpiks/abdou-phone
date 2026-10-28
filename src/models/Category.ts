@@ -9,7 +9,9 @@ export interface ICategoryItem {
   order?: number;
 }
 
-export interface ICategoryDocument extends ICategoryItem, Document {}
+export interface ICategoryDocument extends Omit<ICategoryItem, 'id'>, Document {
+  id: string;
+}
 
 const CategorySchema = new Schema<ICategoryDocument>(
   {

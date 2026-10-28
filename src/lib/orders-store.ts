@@ -6,6 +6,7 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import Category, { ICategoryItem } from '@/models/Category';
 import { broadcastNewOrder } from './order-events';
+import { sendTelegramOrderAlert } from './telegram-alert';
 import {
   ORDER_STATUS_DETAILS,
   ISafeTrackingItem,
@@ -140,6 +141,7 @@ export async function createOrder(orderData: Omit<IOrder, '_id' | 'orderNumber' 
       const parsedOrder: IOrder = JSON.parse(JSON.stringify(newDoc));
       invalidateCatalogCache();
       broadcastNewOrder(parsedOrder);
+      sendTelegramOrderAlert(parsedOrder).catch(() => {});
       return parsedOrder;
     } catch (err) {
       console.warn('[Store] Mongo create failed, using memory store:', err);
@@ -172,6 +174,7 @@ export async function createOrder(orderData: Omit<IOrder, '_id' | 'orderNumber' 
   inMemoryOrders.unshift(newOrder);
   invalidateCatalogCache();
   broadcastNewOrder(newOrder);
+  sendTelegramOrderAlert(newOrder).catch(() => {});
   return newOrder;
 }
 

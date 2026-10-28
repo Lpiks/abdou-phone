@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, ShoppingCart, Check, AlertCircle, Eye, Phone, MapPin, X, Download, RefreshCw } from 'lucide-react';
+import { Search, ShoppingCart, Check, AlertCircle, Eye, Phone, MapPin, X, Download, RefreshCw, FileText, MessageSquare, Copy } from 'lucide-react';
 import CustomSelect from '@/components/common/CustomSelect';
+import BordereauModal from '@/components/admin/BordereauModal';
 import { IOrder, OrderStatus } from '@/types';
 import { ORDER_STATUS_DETAILS } from '@/data/order-status';
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,6 +21,8 @@ function AdminCommandesContent() {
   const [selectedOrder, setSelectedOrder] = useState<IOrder | null>(null);
   const [updatingStatusNumber, setUpdatingStatusNumber] = useState<string | null>(null);
   const [updateMsg, setUpdateMsg] = useState('');
+  const [copiedYalidine, setCopiedYalidine] = useState(false);
+  const [showBordereau, setShowBordereau] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -310,7 +313,10 @@ function AdminCommandesContent() {
           <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-phone-surface border border-phone-border shadow-2xl p-6 sm:p-8 space-y-6">
             <button
               type="button"
-              onClick={() => setSelectedOrder(null)}
+              onClick={() => {
+                setSelectedOrder(null);
+                setShowBordereau(false);
+              }}
               className="absolute top-5 right-5 rtl:right-auto rtl:left-5 p-2 rounded-xl bg-phone-surface-elevated text-phone-dim hover:text-phone-frost cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -323,6 +329,62 @@ function AdminCommandesContent() {
               <h2 className="text-2xl font-bold font-mono text-phone-frost">
                 {selectedOrder.orderNumber}
               </h2>
+            </div>
+
+            {/* Mobile-First Quick Actions Bar for Owner */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              {/* WhatsApp Quick Chat */}
+              <a
+                href={`https://wa.me/213${selectedOrder.customer.phone.replace(/\s+/g, '').replace(/^0/, '')}?text=${encodeURIComponent(
+                  `Salam ${selectedOrder.customer.fullName}, Abdou Phone à l'appareil concernant votre commande #${selectedOrder.orderNumber} d'un montant de ${selectedOrder.totalAmount} DZD pour ${selectedOrder.customer.wilayaName}. Pouvez-vous nous confirmer votre disponibilité ?`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-xl bg-emerald-600/15 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/25 flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>WhatsApp</span>
+              </a>
+
+              {/* Direct Phone Call */}
+              <a
+                href={`tel:${selectedOrder.customer.phone}`}
+                className="p-2.5 rounded-xl bg-phone-surface-elevated border border-phone-border text-phone-frost hover:border-phone-emerald/50 flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <Phone className="w-4 h-4 text-phone-emerald shrink-0" />
+                <span>Appeler</span>
+              </a>
+
+              {/* Bordereau PDF Popup Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowBordereau(true)}
+                className="p-2.5 rounded-xl bg-phone-surface-elevated border border-phone-border text-phone-frost hover:border-cyan-500/50 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>Bordereau PDF</span>
+              </button>
+
+              {/* Copy for Yalidine / ZR Express */}
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `${selectedOrder.customer.fullName} - ${selectedOrder.customer.phone} - ${selectedOrder.customer.wilayaName}, ${selectedOrder.customer.commune} - Total: ${selectedOrder.totalAmount} DZD (${selectedOrder.deliveryType === 'bureau' ? 'STOP DESK' : 'DOMICILE'})`;
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(text);
+                    setCopiedYalidine(true);
+                    setTimeout(() => setCopiedYalidine(false), 2500);
+                  }
+                }}
+                className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                  copiedYalidine
+                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                    : 'bg-phone-surface-elevated border-phone-border text-phone-muted hover:text-phone-frost'
+                }`}
+              >
+                {copiedYalidine ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedYalidine ? 'Copié !' : 'Yalidine'}</span>
+              </button>
             </div>
 
             {/* Customer Box */}
@@ -414,6 +476,14 @@ function AdminCommandesContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bordereau PDF Pop-up Modal */}
+      {showBordereau && selectedOrder && (
+        <BordereauModal
+          order={selectedOrder}
+          onClose={() => setShowBordereau(false)}
+        />
       )}
     </div>
   );

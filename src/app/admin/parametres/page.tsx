@@ -31,15 +31,65 @@ export default function AdminParametresPage() {
   const [email, setEmail] = useState('contact@abdouphone.dz');
   const [address, setAddress] = useState('14 Rue Didouche Mourad, Alger Centre, Algérie');
   const [savedNotice, setSavedNotice] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Delivery Rates Search
   const [wilayaSearch, setWilayaSearch] = useState('');
   const [rates, setRates] = useState(wilayasData);
 
-  const handleSave = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/admin/settings');
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          if (s.storeName) setStoreName(s.storeName);
+          if (s.phone) setPhone(s.phone);
+          if (s.email) setEmail(s.email);
+          if (s.address) setAddress(s.address);
+          if (s.rcNumber) setRcNumber(s.rcNumber);
+          if (s.nifNumber) setNifNumber(s.nifNumber);
+          if (s.nisNumber) setNisNumber(s.nisNumber);
+          if (s.anpdpRef) setAnpdpRef(s.anpdpRef);
+          if (s.ecomLicense) setEcomLicense(s.ecomLicense);
+        }
+      } catch (err) {
+        console.warn('Failed to load store settings:', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2500);
+    try {
+      setSaving(true);
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName,
+          phone,
+          email,
+          address,
+          rcNumber,
+          nifNumber,
+          nisNumber,
+          anpdpRef,
+          ecomLicense,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSavedNotice(true);
+        setTimeout(() => setSavedNotice(false), 3000);
+      }
+    } catch (err) {
+      console.warn('Failed to save settings:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredWilayas = rates.filter((w) =>
@@ -232,10 +282,11 @@ export default function AdminParametresPage() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="h-11 px-6 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer"
+              disabled={saving}
+              className="h-11 px-6 rounded-xl bg-phone-emerald hover:bg-phone-emerald/90 text-phone-void font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{t('adminSettingsSaveBtn')}</span>
+              <span>{saving ? 'Enregistrement...' : t('adminSettingsSaveBtn')}</span>
             </button>
           </div>
         </form>

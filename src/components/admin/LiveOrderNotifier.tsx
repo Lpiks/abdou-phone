@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { Bell, ShoppingBag, X, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Bell, ShoppingBag, X, CheckCircle2, ArrowRight, Volume2 } from 'lucide-react';
 import { IOrder } from '@/types';
 
 function playOrderChime() {
@@ -34,6 +34,7 @@ function playOrderChime() {
 export default function LiveOrderNotifier() {
   const [liveConnected, setLiveConnected] = useState(false);
   const [latestOrder, setLatestOrder] = useState<IOrder | null>(null);
+  const [soundTestTriggered, setSoundTestTriggered] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -78,16 +79,39 @@ export default function LiveOrderNotifier() {
 
   return (
     <>
-      {/* Live Badge in Admin Header */}
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-phone-surface border border-phone-border text-[10px] font-mono select-none">
-        <span
-          className={`w-2 h-2 rounded-full ${
-            liveConnected ? 'bg-phone-emerald animate-pulse' : 'bg-phone-dim'
+      <div className="flex items-center gap-1.5">
+        {/* Live Badge in Admin Header */}
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-phone-surface border border-phone-border text-[10px] font-mono select-none">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              liveConnected ? 'bg-phone-emerald animate-pulse' : 'bg-phone-dim'
+            }`}
+          />
+          <span className={liveConnected ? 'text-phone-emerald font-bold' : 'text-phone-dim'}>
+            {liveConnected ? 'Live 0ms' : 'Connexion...'}
+          </span>
+        </div>
+
+        {/* Audio Test & Unlock Button */}
+        <button
+          type="button"
+          onClick={() => {
+            playOrderChime();
+            setSoundTestTriggered(true);
+            setTimeout(() => setSoundTestTriggered(false), 1500);
+          }}
+          className={`px-2 py-1 rounded-full border text-[10px] font-mono flex items-center gap-1 transition-colors cursor-pointer ${
+            soundTestTriggered
+              ? 'bg-phone-emerald/20 border-phone-emerald text-phone-emerald font-bold'
+              : 'bg-phone-surface border-phone-border text-phone-muted hover:text-phone-frost'
           }`}
-        />
-        <span className={liveConnected ? 'text-phone-emerald font-bold' : 'text-phone-dim'}>
-          {liveConnected ? 'Live 0ms' : 'Connexion...'}
-        </span>
+          title="Tester le carillon et débloquer l'audio du navigateur"
+        >
+          <Volume2 className="w-3 h-3 text-phone-emerald" />
+          <span className="hidden sm:inline">
+            {soundTestTriggered ? 'Bip !' : 'Son'}
+          </span>
+        </button>
       </div>
 
       {/* Floating 0ms Instant Notification Toast */}

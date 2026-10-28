@@ -4,6 +4,7 @@ import React from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import SlideCart from './SlideCart';
+import FloatingWhatsApp from '@/components/common/FloatingWhatsApp';
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
       <main className="flex-1">{children}</main>
       <Footer />
       <SlideCart />
+      <FloatingWhatsApp />
     </div>
   );
 }

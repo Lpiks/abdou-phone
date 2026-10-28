@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { CheckCircle2, Package, Truck, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle2, Package, Truck, ArrowRight, Home, MessageSquare } from 'lucide-react';
 import StoreShell from '@/components/store/StoreShell';
 import { getOrderByNumber } from '@/lib/orders-store';
 import { ORDER_STATUS_DETAILS } from '@/data/order-status';
@@ -116,22 +116,37 @@ export default async function ConfirmationPage({ params }: { params: { orderId: 
           </div>
 
           {/* Action CTAs */}
-          <div className="pt-4 flex flex-col sm:flex-row gap-3">
-            <Link
-              href={`/suivi-commande?num=${order.orderNumber}`}
-              className="flex-1 h-12 rounded-xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] cursor-pointer"
+          <div className="pt-4 flex flex-col gap-3">
+            {/* 1-Click WhatsApp Quick Send for Algerian Buyers */}
+            <a
+              href={`https://wa.me/213669014890?text=${encodeURIComponent(
+                `Salam Abdou Phone, je viens de passer la commande #${order.orderNumber} d'un montant de ${order.totalAmount} DZD pour ${order.customer.wilayaName} (${order.customer.commune}). Je vous confirme ma commande et je peux vous envoyer ma position GPS.`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-13 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] cursor-pointer"
             >
-              <Truck className="w-4 h-4" />
-              <span>Suivre ma commande en direct</span>
-            </Link>
+              <MessageSquare className="w-4 h-4" />
+              <span>Confirmer &amp; Envoyer ma position GPS sur WhatsApp</span>
+            </a>
 
-            <Link
-              href="/"
-              className="h-12 px-6 rounded-xl bg-phone-surface border border-phone-border hover:bg-phone-surface-hover text-phone-frost font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <Home className="w-4 h-4" />
-              <span>Accueil</span>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href={`/suivi-commande?num=${order.orderNumber}`}
+                className="flex-1 h-12 rounded-xl bg-phone-frost hover:bg-white text-phone-void font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] cursor-pointer"
+              >
+                <Truck className="w-4 h-4" />
+                <span>Suivre ma commande en direct</span>
+              </Link>
+
+              <Link
+                href="/"
+                className="h-12 px-6 rounded-xl bg-phone-surface border border-phone-border hover:bg-phone-surface-hover text-phone-frost font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Home className="w-4 h-4" />
+                <span>Accueil</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
